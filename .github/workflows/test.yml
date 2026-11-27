@@ -1,0 +1,55 @@
+# 커밋·풀 리퀘스트마다 검사: 빌드 → 린트 → 타입 → 스키마 → 데스크톱 규칙 → 화면 동작 → 데스크톱 실행 → 회귀
+# 회귀 검사는 크롬 버전 차이로 생기는 미세 차를 허용(RLAB_LOOSE=1). 엄격한 기준 관리는 로컬에서 `npm test`.
+name: 검사
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: 준비 (패키지, 가상 화면, FFmpeg)
+        run: |
+          npm ci --no-audit --no-fund
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb ffmpeg > /dev/null
+          google-chrome --version
+      - name: 빌드
+        run: node build.mjs
+      - name: 빌드 결과가 저장소와 같은지 (app/RESONANCE_LAB.html 커밋 누락 확인)
+        run: git diff --stat --exit-code app/RESONANCE_LAB.html
+      - name: 린트
+        run: npx eslint .
+      - name: 타입 검사
+        run: npx tsc -p tsconfig.json
+      - name: 스키마 검사
+        run: node tests/schema.mjs
+      - name: 데스크톱 규칙 검사
+        run: node tests/desktop.mjs
+      - name: 화면 동작 검사
+        run: node tests/ui.mjs
+      - name: 데스크톱 실행 검사 (Electron)
+        run: |
+          npm i --no-save --no-audit --no-fund electron@33.2.1
+          ELECTRON_PATH="$PWD/node_modules/electron/dist/electron" FFMPEG_PATH="$(which ffmpeg)" xvfb-run -a node tests/desktop_e2e.mjs
+      - name: 회귀 검사 (45장)
+        run: RLAB_LOOSE=1 RLAB_DIFF_DIR=regress-diff node tests/regress.mjs
+      - name: 회귀 차이 이미지 올리기 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regress-diff
+          path: regress-diff
+          if-no-files-found: ignore

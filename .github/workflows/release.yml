@@ -1,0 +1,74 @@
+# 버전 태그(v0.5.9 등)를 올리면: 검사 → 공개판 포터블 exe 빌드 → GitHub Release 에 자동 업로드.
+# 태그 버전과 VERSION 파일이 다르면 멈춘다. 작업판(씬 연출 타이틀 포함)은 만들지 않는다.
+# FFmpeg 는 BtbN/FFmpeg-Builds 의 LGPL Windows 빌드를 받아 넣는다(prores_ks, h264_mf 확인).
+name: 릴리스
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '이미 있는 태그 (예: v0.5.8) — 그 태그로 다시 빌드해 Release 를 만들거나 exe 를 교체'
+        required: true
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      FFMPEG_ZIP: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl.zip
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: 태그와 VERSION 확인
+        run: |
+          VER="$(tr -d '\r\n' < VERSION)"
+          echo "태그 $TAG / VERSION $VER"
+          [ "$TAG" = "v$VER" ] || { echo "::error::태그($TAG)와 VERSION(v$VER)이 다릅니다"; exit 1; }
+          echo "VER=$VER" >> "$GITHUB_ENV"
+      - name: 준비
+        run: npm ci --no-audit --no-fund
+      - name: 검사 (빌드·린트·타입·스키마·데스크톱 규칙)
+        run: |
+          node build.mjs
+          git diff --stat --exit-code app/RESONANCE_LAB.html
+          npx eslint .
+          npx tsc -p tsconfig.json
+          node tests/schema.mjs
+          node tests/desktop.mjs
+      - name: FFmpeg 받기 (LGPL)
+        run: |
+          curl -fsSL -o ffmpeg.zip "$FFMPEG_ZIP"
+          unzip -q ffmpeg.zip -d ffmpeg_dl
+          mkdir -p desktop/ffmpeg
+          cp ffmpeg_dl/*/bin/ffmpeg.exe desktop/ffmpeg/ffmpeg.exe
+          ./desktop/ffmpeg/ffmpeg.exe -hide_banner -version | head -1
+          ENC="$(./desktop/ffmpeg/ffmpeg.exe -hide_banner -encoders)"
+          echo "$ENC" | grep -q prores_ks || { echo "::error::FFmpeg 에 prores_ks 가 없습니다"; exit 1; }
+          echo "$ENC" | grep -q h264_mf || { echo "::error::FFmpeg 에 h264_mf 가 없습니다"; exit 1; }
+          ./desktop/ffmpeg/ffmpeg.exe -hide_banner -buildconf | grep -q -- --enable-gpl && { echo "::error::GPL 빌드입니다 — LGPL 빌드가 필요"; exit 1; } || true
+      - name: 포터블 exe 빌드 (공개판)
+        run: bash tools/build_portable.sh
+      - name: Release 만들기 / exe 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXE="dist/public/RESONANCE_LAB_v${VER}_portable.exe"
+          ls -la "$EXE"
+          (cd dist/public && sha256sum "RESONANCE_LAB_v${VER}_portable.exe" > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          node tools/release_notes.mjs "$VER" > notes.md
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$EXE" dist/public/SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" "$EXE" dist/public/SHA256SUMS.txt --title "RESONANCE LAB v${VER}" --notes-file notes.md
+          fi

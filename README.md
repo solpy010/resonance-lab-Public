@@ -15,7 +15,7 @@
 | 방법 | 설명 |
 |---|---|
 | **브라우저** | `app/RESONANCE_LAB.html`을 크롬·엣지로 엽니다. 파일 하나로 동작합니다. |
-| **단일 실행 파일 (Windows)** | [Releases](../../releases)에서 `RESONANCE_LAB_v0.5.8_portable.exe`를 받아 실행합니다. 설치 불필요. ProRes 출력용 FFmpeg 포함. |
+| **단일 실행 파일 (Windows)** | [Releases](../../releases)에서 `RESONANCE_LAB_v<버전>_portable.exe`를 받아 실행합니다. 설치 불필요. ProRes 출력용 FFmpeg 포함. |
 
 자세한 기능은 [docs/사용법.md](docs/사용법.md)를 보세요.
 
@@ -45,6 +45,8 @@ vite.config.mjs         개발 서버 설정 (npm run dev)
 app/RESONANCE_LAB.html  빌드 결과 (받아서 바로 실행)
 desktop/                Electron 데스크톱 셸 — main.cjs(연결), preload.cjs(화면에 주는 기능), lib/(기록·설정·파일 규칙·FFmpeg 출력)
 tools/build_portable.sh Windows 포터블 exe · 폴더형 앱 빌드
+tools/release_notes.mjs Release 설명 만들기 (CHANGELOG 에서 한 버전 뽑기)
+.github/workflows/      자동 검사(test.yml) · 자동 릴리스(release.yml)
 tests/                  회귀 (regress.mjs, golden.json) · 스키마 (schema.mjs) · 화면 동작 (ui.mjs) · 데스크톱 (desktop.mjs, desktop_e2e.mjs)
 docs/                   사용법 · 실행 안내 · 이미지
 ```
@@ -76,6 +78,19 @@ npm run test:update    # 기준 프레임 다시 저장 — 의도한 화면 변
 - 렌더는 SwiftShader(CPU)로 해서 PC·그래픽카드와 상관없이 같은 결과가 나옵니다. 크롬·엣지가 설치돼 있어야 하며, 경로는 `CHROME_PATH`로 지정할 수 있습니다.
 - 크롬 버전 차이로 생기는 아주 작은 차이를 허용하려면 `RLAB_LOOSE=1 npm test`.
 - 데스크톱 앱을 실제로 띄워 보는 검사(선택): `ELECTRON_PATH=<electron> FFMPEG_PATH=<ffmpeg> node tests/desktop_e2e.mjs` (Linux 서버는 `xvfb-run` 으로).
+
+- 실패한 케이스의 [기준 | 지금] 축소본을 보려면 `RLAB_DIFF_DIR=<폴더> node tests/regress.mjs`.
+
+### 자동 검사·릴리스 (GitHub Actions)
+
+- **검사** (`.github/workflows/test.yml`): main 에 올릴 때마다 빌드 → 빌드 결과 커밋 누락 확인 → 린트 → 타입 → 스키마 → 데스크톱 규칙 → 화면 동작 →
+  데스크톱 실행(Electron) → 회귀(미세 차 허용). 회귀가 실패하면 차이 이미지가 실행 결과의 `regress-diff`에 올라갑니다.
+- **릴리스** (`.github/workflows/release.yml`): 버전 태그를 올리면 Windows 서버에서 검사 → FFmpeg(LGPL 빌드) 받기 → 공개판 포터블 exe 빌드 →
+  Release 생성·업로드(설명은 CHANGELOG 의 그 버전 항목, SHA256 포함). 순서:
+  1. `VERSION`, `package.json`, `desktop/package.json` 의 버전을 올리고 `CHANGELOG.md` 에 `## v<버전> — 날짜` 항목을 씁니다.
+  2. 커밋·푸시 후 `git tag v<버전> && git push origin v<버전>`. 태그와 `VERSION`이 다르면 멈춥니다.
+  3. 이미 있는 태그로 다시 만들려면 Actions → 릴리스 → Run workflow 에 태그를 넣습니다(exe 교체).
+- 작업판(씬 연출 타이틀 포함)은 자동으로 만들지 않습니다 — `bash tools/build_portable.sh --work` 로 직접 빌드합니다.
 
 앞으로의 구조 개선 계획은 [docs/개발_로드맵.md](docs/개발_로드맵.md)에 있습니다.
 

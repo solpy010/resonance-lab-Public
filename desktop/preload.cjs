@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 // 화면에 주는 최소한의 기능 목록. 화면은 Node 기능에 직접 접근하지 못한다.
 contextBridge.exposeInMainWorld('rlabNative', {
-  version: '0.5.8',
+  version: '0.5.9',
   chooseFolder: (title) => ipcRenderer.invoke('dlg:folder', title),
   saveDialog: (name, kind) => ipcRenderer.invoke('dlg:save', name, kind),
   writeFile: (dir, name, bytes) => ipcRenderer.invoke('fs:write', dir, name, bytes),

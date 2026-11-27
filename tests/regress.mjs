@@ -4,6 +4,7 @@
 //   CHROME_PATH=... 로 크롬 경로 지정 가능. 렌더는 항상 SwiftShader(CPU)로 해서 PC·GPU가 달라도 같은 결과를 낸다.
 /* global window, document, RL, app -- page.evaluate 안에서 브라우저 쪽 이름 */
 import fs from 'fs';
+import zlib from 'zlib';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { chromium } from 'playwright-core';
@@ -14,7 +15,29 @@ const GOLD = path.join(ROOT, 'tests/golden.json');
 const UPDATE = process.argv.includes('--update');
 // 기본: 해시가 다르면 실패 (같은 크롬 + SwiftShader 면 비트 단위로 같음).
 // RLAB_LOOSE=1: 크롬 버전이 달라 생기는 미세 차(평균 픽셀 차 TOL 이하)는 통과
-const LOOSE = !!process.env.RLAB_LOOSE, TOL = 0.5;
+// RLAB_DIFF_DIR=<폴더>: 실패한 케이스마다 [기준 | 지금] 축소본을 PNG 로 저장 (자동 검사에서 원인 확인용)
+const LOOSE = !!process.env.RLAB_LOOSE, TOL = 0.5, DIFF_DIR = process.env.RLAB_DIFF_DIR || '';
+// 의존성 없는 PNG 저장 (RGBA 8bit)
+function writePng(file, w, h, rgba) {
+  const crcT = new Int32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c; });
+  const crc = (b) => { let c = -1; for (const x of b) c = crcT[(c ^ x) & 255] ^ (c >>> 8); return (c ^ -1) >>> 0; };
+  const chunk = (t, d) => { const b = Buffer.alloc(12 + d.length); b.writeUInt32BE(d.length, 0); b.write(t, 4, 'ascii'); d.copy(b, 8); b.writeUInt32BE(crc(b.subarray(4, 8 + d.length)), 8 + d.length); return b; };
+  const raw = Buffer.alloc((w * 4 + 1) * h);
+  for (let y = 0; y < h; y++) { raw[y * (w * 4 + 1)] = 0; Buffer.from(rgba.buffer, rgba.byteOffset + y * w * 4, w * 4).copy(raw, y * (w * 4 + 1) + 1); }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;
+  fs.writeFileSync(file, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
+}
+function saveDiff(id, g, a) {
+  if (!DIFF_DIR) return;
+  fs.mkdirSync(DIFF_DIR, { recursive: true });
+  const L = g ? Buffer.from(g.thumb, 'base64') : null, R = Buffer.from(a.thumb, 'base64'), w = a.w, h = a.h, out = new Uint8Array((w * 2 + 4) * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w * 2 + 4; x++) {
+    const d = (y * (w * 2 + 4) + x) * 4, src = x < w ? L : x >= w + 4 ? R : null, sx = x < w ? x : x - w - 4;
+    if (src && src.length === w * h * 4) for (let c = 0; c < 4; c++) out[d + c] = src[(y * w + sx) * 4 + c];
+    else { out[d] = 255; out[d + 3] = 255; }
+  }
+  writePng(path.join(DIFF_DIR, id.replace(/[^\w.-]+/g, '_') + '.png'), w * 2 + 4, h, out);
+}
 const W = +(process.env.RLAB_W || 640);   // 렌더 폭(px) — 문서 크기는 유지하고 배율로 줄임
 const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
 const TIMES = [0.5, 2.0, 4.0];
@@ -94,7 +117,7 @@ async function main() {
         else { status = 'FAIL'; note = `기준과 다름 (평균 픽셀 차 ${d.toFixed(3)})`; }
       }
     } else if (!UPDATE) { status = 'new'; note = '기준 없음'; }
-    if (status === 'FAIL') fail++; if (status === 'warn') warn++;
+    if (status === 'FAIL') { fail++; saveDiff(id, gold[id], a); } if (status === 'warn') warn++;
     next[id] = a;
     const tb = Buffer.from(a.thumb, 'base64'); let lum = 0; for (let i = 0; i < tb.length; i += 4) lum += tb[i] + tb[i + 1] + tb[i + 2];
     lum /= tb.length / 4 * 3;

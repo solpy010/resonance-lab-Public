@@ -1,0 +1,7 @@
+# 줄바꿈을 LF 로 고정 — Windows 에서 받아도 빌드 결과(app/RESONANCE_LAB.html)가 같게
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.glb binary
+*.exe binary
+*.zip binary

@@ -1,6 +1,6 @@
 {
   "name": "resonance-lab",
-  "version": "0.5.8",
+  "version": "0.5.9",
   "description": "RESONANCE LAB — offline WebGL visual simulator for live-performance media art",
   "private": true,
   "license": "Unlicense",
