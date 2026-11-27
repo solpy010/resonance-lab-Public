@@ -3,17 +3,17 @@ import { RL } from './core/rl.js';
 import * as Mp4Muxer from 'mp4-muxer';
 // Export: PNG 시퀀스(알파) · MP4(H.264, WebCodecs) · 단일 프레임
 
-RL.crc32 = (function () {
+export const crc32 = (function () {
   const T = new Uint32Array(256);
   for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; T[n] = c >>> 0; }
   return (u8) => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
 })();
 
 // store-only zip writer (fallback when folder picker is unavailable)
-RL.ZipWriter = class {
+export const ZipWriter = class {
   constructor() { this.files = []; this.parts = []; this.offset = 0; }
   add(name, u8) {
-    const nm = new TextEncoder().encode(name), crc = RL.crc32(u8);
+    const nm = new TextEncoder().encode(name), crc = crc32(u8);
     const h = new DataView(new ArrayBuffer(30));
     h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
     h.setUint32(14, crc, true); h.setUint32(18, u8.length, true); h.setUint32(22, u8.length, true); h.setUint16(26, nm.length, true);
@@ -37,14 +37,14 @@ RL.ZipWriter = class {
   }
 };
 
-RL.download = function (blob, name) {
+export const download = function (blob, name) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 };
 
-RL.encodePNG = async function (px, w, h) {
+export const encodePNG = async function (px, w, h) {
   const c = new OffscreenCanvas(w, h);
   const ctx = c.getContext('2d');
   ctx.putImageData(new ImageData(px, w, h), 0, 0);
@@ -52,9 +52,9 @@ RL.encodePNG = async function (px, w, h) {
   return new Uint8Array(await b.arrayBuffer());
 };
 
-RL.safeName = s => String(s || 'untitled').replace(/[\\/:*?"<>|\s]+/g, '_');
+export const safeName = s => String(s || 'untitled').replace(/[\\/:*?"<>|\s]+/g, '_');
 
-RL.Exporter = class {
+export const Exporter = class {
   constructor(app) { this.app = app; this.cancel = false; }
 
   async withFullRes(fn) {
@@ -82,8 +82,8 @@ RL.Exporter = class {
       try { dir = await window.showDirectoryPicker({ mode: 'readwrite', id: 'rlab-export' }); }
       catch (e) { if (e.name === 'AbortError') return 'cancelled'; dir = null; }
     }
-    if (!dir && !ndir) zip = new RL.ZipWriter();
-    const base = `${RL.safeName(P.name)}_${opt.pass || 'rgba'}_${P.width}x${P.height}_${P.fps}_s${P.seed}`;
+    if (!dir && !ndir) zip = new ZipWriter();
+    const base = `${safeName(P.name)}_${opt.pass || 'rgba'}_${P.width}x${P.height}_${P.fps}_s${P.seed}`;
     const [a, b] = this.frameRange(opt);
     this.cancel = false;
     return this.withFullRes(async (E) => {
@@ -94,7 +94,7 @@ RL.Exporter = class {
         if (f < a) { if (f % 15 === 0) { progress((f + 1) / b, `건너뛰는 중 ${f + 1}/${a}`); await new Promise(r => setTimeout(r)); } continue; }
         E.render();
         const px = E.readFrame();
-        const png = await RL.encodePNG(px, E.rw, E.rh);
+        const png = await encodePNG(px, E.rw, E.rh);
         const name = `${base}_${String(f - a).padStart(5, '0')}.png`;
         if (ndir) await N.writeFile(ndir, name, png);
         else if (dir) { const fh = await dir.getFileHandle(name, { create: true }); const w = await fh.createWritable(); await w.write(png); await w.close(); }
@@ -105,7 +105,7 @@ RL.Exporter = class {
       const json = new TextEncoder().encode(JSON.stringify(P, null, 2));
       if (ndir) { await N.writeFile(ndir, base + '_project.rlab.json', json); return { status: 'done', path: ndir }; }
       if (dir) { const fh = await dir.getFileHandle(base + '_project.rlab.json', { create: true }); const w = await fh.createWritable(); await w.write(json); await w.close(); }
-      else { zip.add(base + '_project.rlab.json', json); RL.download(zip.blob(), base + '.zip'); }
+      else { zip.add(base + '_project.rlab.json', json); download(zip.blob(), base + '.zip'); }
       return 'done';
     });
   }
@@ -117,7 +117,7 @@ RL.Exporter = class {
       const P0 = this.app.project;
       const cfgOk = window.VideoEncoder && await VideoEncoder.isConfigSupported({ codec: 'avc1.640034', width: P0.width, height: P0.height, bitrate: 2e7, framerate: P0.fps }).then(s => s.supported).catch(() => false);
       if (!cfgOk) return this.ffmpegVideo(opt, progress, 'h264');
-      nfile = await N.saveDialog(`${RL.safeName(P0.name)}_${P0.width}x${P0.height}_${P0.fps}_s${P0.seed}.mp4`, 'mp4');
+      nfile = await N.saveDialog(`${safeName(P0.name)}_${P0.width}x${P0.height}_${P0.fps}_s${P0.seed}.mp4`, 'mp4');
       if (!nfile) return 'cancelled';
     }
     if (!window.VideoEncoder) throw new Error('이 브라우저는 WebCodecs(H.264 인코딩)를 지원하지 않습니다. Chrome/Edge 최신 버전을 사용하세요.');
@@ -158,7 +158,7 @@ RL.Exporter = class {
         await enc.flush();
         muxer.finalize();
         if (nfile) { await window.rlabNative.writePath(nfile, new Uint8Array(muxer.target.buffer)); return { status: 'done', path: nfile }; }
-        RL.download(new Blob([muxer.target.buffer], { type: 'video/mp4' }), `${RL.safeName(P.name)}_${P.width}x${P.height}_${P.fps}_s${P.seed}.mp4`);
+        download(new Blob([muxer.target.buffer], { type: 'video/mp4' }), `${safeName(P.name)}_${P.width}x${P.height}_${P.fps}_s${P.seed}.mp4`);
         return 'done';
       } finally { E.view.checker = prevChecker; }
     });
@@ -170,10 +170,10 @@ RL.Exporter = class {
       E.reset();
       for (let f = 0; f <= frame; f++) E.stepFrame();
       E.render();
-      const png = await RL.encodePNG(E.readFrame(), E.rw, E.rh);
-      const name = `${RL.safeName(P.name)}_f${String(frame).padStart(5, '0')}.png`;
+      const png = await encodePNG(E.readFrame(), E.rw, E.rh);
+      const name = `${safeName(P.name)}_f${String(frame).padStart(5, '0')}.png`;
       if (window.rlabNative) { const f = await window.rlabNative.saveDialog(name, 'png'); if (!f) return 'cancelled'; await window.rlabNative.writePath(f, png); return { status: 'done', path: f }; }
-      RL.download(new Blob([png], { type: 'image/png' }), name);
+      download(new Blob([png], { type: 'image/png' }), name);
       return 'done';
     });
   }
@@ -184,7 +184,7 @@ RL.Exporter = class {
     const P = this.app.project;
     const ext = codec === 'h264' ? 'mp4' : 'mov';
     const tag = codec === 'prores4444' ? 'PR4444' : codec === 'prores422hq' ? 'PR422HQ' : 'H264';
-    const file = await N.saveDialog(`${RL.safeName(P.name)}_${tag}_${P.width}x${P.height}_${P.fps}_s${P.seed}.${ext}`, ext);
+    const file = await N.saveDialog(`${safeName(P.name)}_${tag}_${P.width}x${P.height}_${P.fps}_s${P.seed}.${ext}`, ext);
     if (!file) return 'cancelled';
     const [a, b] = this.frameRange(opt);
     this.cancel = false;
@@ -211,3 +211,6 @@ RL.Exporter = class {
     });
   }
 };
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { crc32, ZipWriter, download, encodePNG, safeName, Exporter });

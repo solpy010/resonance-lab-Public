@@ -16078,7 +16078,7 @@ ensureNotFinalized_fn = function() {
 	if (__privateGet(this, _finalized)) throw new Error("Cannot add new video or audio chunks after the file has been finalized.");
 };
 // src/export.js
-RL.crc32 = (function() {
+var crc32 = (function() {
 	const T = /* @__PURE__ */ new Uint32Array(256);
 	for (let n = 0; n < 256; n++) {
 		let c = n;
@@ -16091,14 +16091,14 @@ RL.crc32 = (function() {
 		return (c ^ 0xffffffff) >>> 0;
 	};
 })();
-RL.ZipWriter = class {
+var ZipWriter = class {
 	constructor() {
 		this.files = [];
 		this.parts = [];
 		this.offset = 0;
 	}
 	add(name, u8) {
-		const nm = new TextEncoder().encode(name), crc = RL.crc32(u8);
+		const nm = new TextEncoder().encode(name), crc = crc32(u8);
 		const h = /* @__PURE__ */ new DataView(/* @__PURE__ */ new ArrayBuffer(30));
 		h.setUint32(0, 67324752, true);
 		h.setUint16(4, 20, true);
@@ -16147,7 +16147,7 @@ RL.ZipWriter = class {
 		], { type: "application/zip" });
 	}
 };
-RL.download = function(blob, name) {
+var download = function(blob, name) {
 	const a = document.createElement("a");
 	a.href = URL.createObjectURL(blob);
 	a.download = name;
@@ -16156,14 +16156,14 @@ RL.download = function(blob, name) {
 	a.remove();
 	setTimeout(() => URL.revokeObjectURL(a.href), 4e3);
 };
-RL.encodePNG = async function(px, w, h) {
+var encodePNG = async function(px, w, h) {
 	const c = new OffscreenCanvas(w, h);
 	c.getContext("2d").putImageData(new ImageData(px, w, h), 0, 0);
 	const b = await c.convertToBlob({ type: "image/png" });
 	return new Uint8Array(await b.arrayBuffer());
 };
-RL.safeName = (s) => String(s || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_");
-RL.Exporter = class {
+var safeName = (s) => String(s || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_");
+var Exporter = class {
 	constructor(app) {
 		this.app = app;
 		this.cancel = false;
@@ -16205,8 +16205,8 @@ RL.Exporter = class {
 			if (e.name === "AbortError") return "cancelled";
 			dir = null;
 		}
-		if (!dir && !ndir) zip = new RL.ZipWriter();
-		const base = `${RL.safeName(P.name)}_${opt.pass || "rgba"}_${P.width}x${P.height}_${P.fps}_s${P.seed}`;
+		if (!dir && !ndir) zip = new ZipWriter();
+		const base = `${safeName(P.name)}_${opt.pass || "rgba"}_${P.width}x${P.height}_${P.fps}_s${P.seed}`;
 		const [a, b] = this.frameRange(opt);
 		this.cancel = false;
 		return this.withFullRes(async (E) => {
@@ -16222,8 +16222,7 @@ RL.Exporter = class {
 					continue;
 				}
 				E.render();
-				const px = E.readFrame();
-				const png = await RL.encodePNG(px, E.rw, E.rh);
+				const png = await encodePNG(E.readFrame(), E.rw, E.rh);
 				const name = `${base}_${String(f - a).padStart(5, "0")}.png`;
 				if (ndir) await N.writeFile(ndir, name, png);
 				else if (dir) {
@@ -16251,7 +16250,7 @@ RL.Exporter = class {
 				await w.close();
 			} else {
 				zip.add(base + "_project.rlab.json", json);
-				RL.download(zip.blob(), base + ".zip");
+				download(zip.blob(), base + ".zip");
 			}
 			return "done";
 		});
@@ -16268,7 +16267,7 @@ RL.Exporter = class {
 				bitrate: 2e7,
 				framerate: P0.fps
 			}).then((s) => s.supported).catch(() => false))) return this.ffmpegVideo(opt, progress, "h264");
-			nfile = await N.saveDialog(`${RL.safeName(P0.name)}_${P0.width}x${P0.height}_${P0.fps}_s${P0.seed}.mp4`, "mp4");
+			nfile = await N.saveDialog(`${safeName(P0.name)}_${P0.width}x${P0.height}_${P0.fps}_s${P0.seed}.mp4`, "mp4");
 			if (!nfile) return "cancelled";
 		}
 		if (!window.VideoEncoder) throw new Error("이 브라우저는 WebCodecs(H.264 인코딩)를 지원하지 않습니다. Chrome/Edge 최신 버전을 사용하세요.");
@@ -16354,7 +16353,7 @@ RL.Exporter = class {
 						path: nfile
 					};
 				}
-				RL.download(new Blob([muxer.target.buffer], { type: "video/mp4" }), `${RL.safeName(P.name)}_${P.width}x${P.height}_${P.fps}_s${P.seed}.mp4`);
+				download(new Blob([muxer.target.buffer], { type: "video/mp4" }), `${safeName(P.name)}_${P.width}x${P.height}_${P.fps}_s${P.seed}.mp4`);
 				return "done";
 			} finally {
 				E.view.checker = prevChecker;
@@ -16367,8 +16366,8 @@ RL.Exporter = class {
 			E.reset();
 			for (let f = 0; f <= frame; f++) E.stepFrame();
 			E.render();
-			const png = await RL.encodePNG(E.readFrame(), E.rw, E.rh);
-			const name = `${RL.safeName(P.name)}_f${String(frame).padStart(5, "0")}.png`;
+			const png = await encodePNG(E.readFrame(), E.rw, E.rh);
+			const name = `${safeName(P.name)}_f${String(frame).padStart(5, "0")}.png`;
 			if (window.rlabNative) {
 				const f = await window.rlabNative.saveDialog(name, "png");
 				if (!f) return "cancelled";
@@ -16378,7 +16377,7 @@ RL.Exporter = class {
 					path: f
 				};
 			}
-			RL.download(new Blob([png], { type: "image/png" }), name);
+			download(new Blob([png], { type: "image/png" }), name);
 			return "done";
 		});
 	}
@@ -16388,7 +16387,7 @@ RL.Exporter = class {
 		const P = this.app.project;
 		const ext = codec === "h264" ? "mp4" : "mov";
 		const tag = codec === "prores4444" ? "PR4444" : codec === "prores422hq" ? "PR422HQ" : "H264";
-		const file = await N.saveDialog(`${RL.safeName(P.name)}_${tag}_${P.width}x${P.height}_${P.fps}_s${P.seed}.${ext}`, ext);
+		const file = await N.saveDialog(`${safeName(P.name)}_${tag}_${P.width}x${P.height}_${P.fps}_s${P.seed}.${ext}`, ext);
 		if (!file) return "cancelled";
 		const [a, b] = this.frameRange(opt);
 		this.cancel = false;
@@ -16437,6 +16436,14 @@ RL.Exporter = class {
 		});
 	}
 };
+Object.assign(RL, {
+	crc32,
+	ZipWriter,
+	download,
+	encodePNG,
+	safeName,
+	Exporter
+});
 // src/ui.js
 var $ = (s, r) => (r || document).querySelector(s);
 var $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -16459,7 +16466,7 @@ RL.App = class {
 	constructor() {
 		this.engine = new Engine($("#gl"));
 		this.audio = new Audio();
-		this.exporter = new RL.Exporter(this);
+		this.exporter = new Exporter(this);
 		this.view = {
 			guides: true,
 			thumb: false
@@ -16668,9 +16675,9 @@ RL.App = class {
 			this.needsRender = true;
 		});
 		$("#btnSave").addEventListener("click", async () => {
-			const json = JSON.stringify(P(), null, 2), name = RL.safeName(P().name) + ".rlab.json";
+			const json = JSON.stringify(P(), null, 2), name = safeName(P().name) + ".rlab.json";
 			if (!this.native) {
-				RL.download(new Blob([json], { type: "application/json" }), name);
+				download(new Blob([json], { type: "application/json" }), name);
 				return;
 			}
 			try {
@@ -19188,9 +19195,9 @@ Object.assign(RL.App.prototype, {
 			active: this.shelfActive,
 			scenes: this.shelf
 		};
-		const json = JSON.stringify(act), name = RL.safeName(this.project.name || "act") + ".rlab-act.json";
+		const json = JSON.stringify(act), name = safeName(this.project.name || "act") + ".rlab-act.json";
 		if (!this.native) {
-			RL.download(new Blob([json], { type: "application/json" }), name);
+			download(new Blob([json], { type: "application/json" }), name);
 			return;
 		}
 		try {

@@ -3,6 +3,7 @@ import { RL } from './core/rl.js';
 import { $, h } from './ui.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import * as exportLib from './export.js';
 // RESONANCE LAB — menubar, resizable panels, zoom/pan, undo/redo, scene shelf (Ctrl+S), acts, asset loading
 
 Object.assign(RL.App.prototype, {
@@ -465,8 +466,8 @@ Object.assign(RL.App.prototype, {
   async saveAct() {
     if (!this.shelf.length) { this.toast('먼저 Ctrl+S로 씬을 백업하세요'); return; }
     const act = { type: 'rlab-act', version: 1, name: this.project.name, saved: new Date().toISOString(), active: this.shelfActive, scenes: this.shelf };
-    const json = JSON.stringify(act), name = RL.safeName(this.project.name || 'act') + '.rlab-act.json';
-    if (!this.native) { RL.download(new Blob([json], { type: 'application/json' }), name); return; }
+    const json = JSON.stringify(act), name = exportLib.safeName(this.project.name || 'act') + '.rlab-act.json';
+    if (!this.native) { exportLib.download(new Blob([json], { type: 'application/json' }), name); return; }
     try { const f = await this.native.saveDialog(name, 'json'); if (f) { await this.native.writePath(f, new TextEncoder().encode(json)); this.toast('액트 저장: ' + f, 2500); } }
     catch (err) { alert('액트 저장 실패: ' + err.message); }
   },

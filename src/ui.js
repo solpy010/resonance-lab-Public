@@ -3,6 +3,7 @@ import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
 import * as audioLib from './audio.js';
+import * as exportLib from './export.js';
 // RESONANCE LAB — application UI
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -24,7 +25,7 @@ RL.App = class {
   constructor() {
     this.engine = new eng.Engine($('#gl'));
     this.audio = new audioLib.Audio();
-    this.exporter = new RL.Exporter(this);
+    this.exporter = new exportLib.Exporter(this);
     this.view = { guides: true, thumb: false };
     this.engine.view.checker = true;
     this.playing = false; this.sel = null; this.exporting = false; this.seekToken = 0;
@@ -159,8 +160,8 @@ RL.App = class {
       this.drawGuides(); this.needsRender = true;
     });
     $('#btnSave').addEventListener('click', async () => {
-      const json = JSON.stringify(P(), null, 2), name = RL.safeName(P().name) + '.rlab.json';
-      if (!this.native) { RL.download(new Blob([json], { type: 'application/json' }), name); return; }
+      const json = JSON.stringify(P(), null, 2), name = exportLib.safeName(P().name) + '.rlab.json';
+      if (!this.native) { exportLib.download(new Blob([json], { type: 'application/json' }), name); return; }
       try { const f = await this.native.saveDialog(name, 'json'); if (f) { await this.native.writePath(f, new TextEncoder().encode(json)); this.nativePath = f; this.toast && this.toast('저장: ' + f, 2200); } }
       catch (err) { alert('저장 실패: ' + err.message); }
     });
