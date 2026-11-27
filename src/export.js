@@ -1,4 +1,6 @@
 'use strict';
+import { RL } from './core/rl.js';
+import * as Mp4Muxer from 'mp4-muxer';
 // Export: PNG 시퀀스(알파) · MP4(H.264, WebCodecs) · 단일 프레임
 
 RL.crc32 = (function () {
@@ -118,7 +120,7 @@ RL.Exporter = class {
       nfile = await N.saveDialog(`${RL.safeName(P0.name)}_${P0.width}x${P0.height}_${P0.fps}_s${P0.seed}.mp4`, 'mp4');
       if (!nfile) return 'cancelled';
     }
-    if (!window.VideoEncoder || !window.Mp4Muxer) throw new Error('이 브라우저는 WebCodecs(H.264 인코딩)를 지원하지 않습니다. Chrome/Edge 최신 버전을 사용하세요.');
+    if (!window.VideoEncoder) throw new Error('이 브라우저는 WebCodecs(H.264 인코딩)를 지원하지 않습니다. Chrome/Edge 최신 버전을 사용하세요.');
     const P = this.app.project;
     const [a, b] = this.frameRange(opt);
     this.cancel = false;

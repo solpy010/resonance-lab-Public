@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // FLUID — Stable Fluids (Stam 1999 계열) 직접 구현. 염료 밀도 = 알파 → 배경 위에 '물감'처럼 얹힘
 
 RL.modules.fluid = {

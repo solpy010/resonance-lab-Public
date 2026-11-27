@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // PARTICLE — CPU 결정적 파티클 (컬 노이즈 난류, 깊이별 크기·속도·밝기 차등, 팬라이트 그리드)
 
 RL.modules.particle = {

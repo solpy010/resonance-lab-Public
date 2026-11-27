@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // SURFACE — 그라데이션 흐름 면 / 세로 그라데이션 면들의 커브 댄스 (씬 1_5)
 
 RL.modules.surface = {

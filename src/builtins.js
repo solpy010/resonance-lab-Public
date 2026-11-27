@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // Built-in line-art graphics drawn in code (white strokes → tinted in the shader). Replaceable by user images/videos.
 
 RL.drawBuiltin = function (name) {

@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // LINE — 리듬선(가로 요동) / 가로지르기(시작 면→끝 면, 속도) / 낙하 스크래치. 네온 관 모델 렌더.
 // 선의 현재 위치·속도를 engine.colliders에 공개 → 기하 물리 도형이 부딪혀 튕긴다.
 

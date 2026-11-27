@@ -24,7 +24,9 @@
 ## 저장소 구성
 
 ```
-src/                    전체 소스 (평문)
+src/                    전체 소스 (ES 모듈, 평문)
+  main.js               진입점 — 모듈 불러오는 순서 (레이어 버튼 순서와 같음)
+  core/rl.js            공유 네임스페이스 RL
   gl.js batch.js engine.js fx.js builtins.js   WebGL2 엔진 · 렌더 배치 · 후처리 · 기본 아이콘
   mod_*.js              레이어 모듈 — 파장·유체·파티클·도트·라인·빔·면·도형·오브젝트 유영·로봇팔·네온 기하·레이저
   rhythm/               리듬게임 레이어 (fx_glsl.js: 셰이더 이펙트 14종, mod_rhythm.js: 노트·심벌·다중참여)
@@ -32,7 +34,8 @@ src/                    전체 소스 (평문)
   presets.js            프리셋 (씬 번호)
   audio.js export.js    오디오 분석 · PNG/MP4/ProRes 출력
   ui.js ui2.js index.html style.css   화면
-build.mjs               src/ → app/RESONANCE_LAB.html (파일 하나로 실행)
+build.mjs               src/ → app/RESONANCE_LAB.html (Vite, 파일 하나로 실행, 축약 없음)
+vite.config.mjs         개발 서버 설정 (npm run dev)
 app/RESONANCE_LAB.html  빌드 결과 (받아서 바로 실행)
 desktop/                Electron 데스크톱 셸 (main.cjs, preload.cjs, package.json, eb.json)
 tools/build_portable.sh Windows 포터블 exe · 폴더형 앱 빌드
@@ -43,9 +46,9 @@ docs/                   사용법 · 실행 안내 · 이미지
 ## 수정·빌드
 
 ```bash
-npm install          # 처음 한 번 (mp4-muxer)
-node build.mjs       # src/ → app/RESONANCE_LAB.html
-# app/RESONANCE_LAB.html 을 크롬·엣지로 열어 확인
+npm install          # 처음 한 번
+npm run dev          # 개발 서버 — 소스를 고치면 브라우저에 바로 반영
+npm run build        # src/ → app/RESONANCE_LAB.html (배포용 단일 파일)
 
 # Windows 포터블 exe (선택) — desktop/ffmpeg/ffmpeg.exe 를 직접 넣은 뒤 (https://ffmpeg.org/download.html, 저장소에는 없음)
 bash tools/build_portable.sh   # → dist/public/RESONANCE_LAB_v<버전>_portable.exe

@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // Shared hit/pop effect renderer (stateless: everything is a function of the effect's age) — used by 리듬게임 / 오브젝트 유영
 
 RL.FX_TYPES = ['ring', 'rays', 'shards', 'sparks', 'flash'];

@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // 3층: 오디오 불러오기 · 파형 · 온셋(타격) 검출 → 마커
 
 RL.Audio = class {

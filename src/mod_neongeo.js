@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // NEONGEO — 네온 입체 기하: 입방체·다면체·기하무늬가 제자리에서 회전. 외곽선만 / 보이는 모서리 / 모든 모서리 / 면+모서리 / 솔리드
 
 (function () {

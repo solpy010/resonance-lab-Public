@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // Instanced sprite & neon-segment renderers (sizes in document pixels; positions normalized 0..1, y up)
 
 RL.SpriteBatch = class {

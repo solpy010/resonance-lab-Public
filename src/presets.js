@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // Scene presets — 1110 연출 체크리스트 기준. 장면은 연출안에서 출발, 색은 씬 고유 팔레트
 
 RL.presets = {};

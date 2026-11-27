@@ -1,6 +1,6 @@
 'use strict';
+import { RL } from './core/rl.js';
 // RESONANCE LAB — WebGL2 helpers (clean-room implementation)
-const RL = window.RL = window.RL || {};
 
 RL.VS = `#version 300 es
 layout(location=0) in vec2 p;

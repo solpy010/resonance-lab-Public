@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // LASER — 레이저 아트: 가는 고휘도 빔(흰 심 + 색 번짐) · 안개 산란 · BPM 동기 패턴 · 레이저 그래픽(리사주·원·별·물결)
 
 (function () {

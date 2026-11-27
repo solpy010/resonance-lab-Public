@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // RESONANCE LAB — application UI
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -764,3 +765,5 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+
+export { $, $$, h, fmtTime };

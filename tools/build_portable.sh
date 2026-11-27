@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VER="$(cat "$ROOT/VERSION")"
 MODE="${1:-}"
 cd "$ROOT"
-[ -d node_modules/mp4-muxer ] || npm install --no-audit --no-fund --silent
+[ -d node_modules/vite ] || npm install --no-audit --no-fund --silent
 if [ "$MODE" = "--work" ]; then node build.mjs --work; HTML="dist/RESONANCE_LAB_work.html"; OUT="$ROOT/dist/work"; else node build.mjs; HTML="app/RESONANCE_LAB.html"; OUT="$ROOT/dist/public"; fi
 B="$ROOT/build/desktop"
 rm -rf "$B" && mkdir -p "$B/app" "$B/ffmpeg"

@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // BEAM — 가상 조명 빔 + 볼류메트릭 안개 산란 (빔 하강·부채꼴 확산·점멸)
 
 RL.modules.beam = {

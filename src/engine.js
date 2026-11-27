@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // RESONANCE LAB — engine: deterministic frame clock, layer graph, 2층 post, background/alpha output
 
 RL.modules = {};

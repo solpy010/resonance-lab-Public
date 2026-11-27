@@ -1,4 +1,6 @@
 'use strict';
+import { RL } from './core/rl.js';
+import { $, h } from './ui.js';
 // RESONANCE LAB — menubar, resizable panels, zoom/pan, undo/redo, scene shelf (Ctrl+S), acts, asset loading
 
 Object.assign(RL.App.prototype, {

@@ -1,4 +1,5 @@
 'use strict';
+import { RL } from './core/rl.js';
 // DOT — 스프링 격자 도트 (이웃 결합으로 파동이 실제로 전파). 도트 융기·기둥 돌출
 
 RL.modules.dot = {
