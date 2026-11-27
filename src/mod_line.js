@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as batches from './batch.js';
 // LINE — 리듬선(가로 요동) / 가로지르기(시작 면→끝 면, 속도) / 낙하 스크래치. 네온 관 모델 렌더.
 // 선의 현재 위치·속도를 engine.colliders에 공개 → 기하 물리 도형이 부딪혀 튕긴다.
 
@@ -285,7 +286,7 @@ RL.modules.line = {
         webgl.clear(gl, target);
         if (!L.def.enabled) return;
         const sg = engine.segs, cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(webgl.hexToRgb);
-        const style = RL.LINE_STYLES[P.style] ?? 0, docW = engine.docW, docH = engine.docH;
+        const style = batches.LINE_STYLES[P.style] ?? 0, docW = engine.docW, docH = engine.docH;
         sg.begin();
         const ramp = (f) => { const n = cols.length; if (n === 1) return cols[0]; const p = Math.min(n - 1.0001, Math.max(0, f * (n - 1))); const i = Math.floor(p), w = p - i, a = cols[i], b = cols[i + 1]; return [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w, a[2] + (b[2] - a[2]) * w]; };
         const colorOf = (p, u, depthF) => P.colorMode === 'x' ? ramp(u) : P.colorMode === 'depth' ? ramp(depthF) : (P.mode === 'eq' ? cols[p.ci % cols.length] : cols[Math.floor(p.ci * cols.length) % cols.length]);

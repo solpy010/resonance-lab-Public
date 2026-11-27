@@ -440,7 +440,7 @@ Object.assign(RL, {
 	ease
 });
 // src/batch.js
-RL.SpriteBatch = class {
+var SpriteBatch = class {
 	constructor(gl, max) {
 		this.gl = gl;
 		this.max = max;
@@ -563,7 +563,7 @@ RL.SpriteBatch = class {
 		gl.bindVertexArray(null);
 	}
 };
-RL.LINE_STYLES = {
+var LINE_STYLES = {
 	neon: 0,
 	tube: 1,
 	ribbon: 2,
@@ -572,7 +572,7 @@ RL.LINE_STYLES = {
 	beads: 5,
 	shadow: 6
 };
-RL.SegBatch = class {
+var SegBatch = class {
 	constructor(gl, max) {
 		this.gl = gl;
 		this.max = max;
@@ -732,7 +732,7 @@ RL.SegBatch = class {
 		this.n = 0;
 	}
 };
-RL.TexBatch = class {
+var TexBatch = class {
 	constructor(gl, max) {
 		this.gl = gl;
 		this.max = max;
@@ -833,6 +833,12 @@ RL.TexBatch = class {
 		this.n = 0;
 	}
 };
+Object.assign(RL, {
+	SpriteBatch,
+	LINE_STYLES,
+	SegBatch,
+	TexBatch
+});
 // src/builtins.js
 RL.drawBuiltin = function(name) {
 	const mk = (w, h) => {
@@ -1300,9 +1306,9 @@ RL.Engine = class {
 			checker: true,
 			seam: false
 		};
-		this.sprites = new RL.SpriteBatch(gl, 12e4);
-		this.segs = new RL.SegBatch(gl, 12e4);
-		this.texb = new RL.TexBatch(gl, 2e4);
+		this.sprites = new SpriteBatch(gl, 12e4);
+		this.segs = new SegBatch(gl, 12e4);
+		this.texb = new TexBatch(gl, 2e4);
 		this.assets = /* @__PURE__ */ new Map();
 		this.builtins = {};
 		this.onAssetLoad = null;
@@ -5451,7 +5457,7 @@ RL.modules.line = {
 				clear(gl, target);
 				if (!L.def.enabled) return;
 				const sg = engine.segs, cols = (P.colors && P.colors.length ? P.colors : ["#ffffff"]).map(hexToRgb);
-				const style = RL.LINE_STYLES[P.style] ?? 0, docW = engine.docW, docH = engine.docH;
+				const style = LINE_STYLES[P.style] ?? 0, docW = engine.docW, docH = engine.docH;
 				sg.begin();
 				const ramp = (f) => {
 					const n = cols.length;
@@ -12208,7 +12214,7 @@ RL.ROBOT_MESH = [
 					sg.begin();
 					sb.begin();
 					nt = 0;
-					const style = RL.LINE_STYLES[P.style] ?? 0;
+					const style = LINE_STYLES[P.style] ?? 0;
 					const ph = (this.beat % 1 + 1) % 1, pulseB = Math.exp(-ph * 6);
 					const items = [];
 					for (let i = 0; i < n; i++) {

@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as batches from './batch.js';
 // RESONANCE LAB — engine: deterministic frame clock, layer graph, 2층 post, background/alpha output
 
 RL.modules = {};
@@ -76,9 +77,9 @@ RL.Engine = class {
     this.scale = 0.5;
     this.frame = 0;
     this.view = { grayscale: false, glowOff: false, checker: true, seam: false };
-    this.sprites = new RL.SpriteBatch(gl, 120000);
-    this.segs = new RL.SegBatch(gl, 120000);
-    this.texb = new RL.TexBatch(gl, 20000);
+    this.sprites = new batches.SpriteBatch(gl, 120000);
+    this.segs = new batches.SegBatch(gl, 120000);
+    this.texb = new batches.TexBatch(gl, 20000);
     this.assets = new Map();      // id -> { tex, w, h, cols, rows, frames, luma, ready }
     this.builtins = {};
     this.onAssetLoad = null;

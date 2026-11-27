@@ -3,7 +3,7 @@ import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 // Instanced sprite & neon-segment renderers (sizes in document pixels; positions normalized 0..1, y up)
 
-RL.SpriteBatch = class {
+export const SpriteBatch = class {
   constructor(gl, max) {
     this.gl = gl; this.max = max; this.n = 0;
     this.stride = 16; // x,y,w,h | rot,r,g,b | a,shape,soft,glow | outline,pad,pad,pad
@@ -98,8 +98,8 @@ RL.SpriteBatch = class {
 };
 
 // Line segments with material styles (2층 물성): 0 neon(core+halo) 1 tube(3D cylinder) 2 ribbon 3 brush 4 flat 5 beads 6 shadow
-RL.LINE_STYLES = { neon: 0, tube: 1, ribbon: 2, brush: 3, flat: 4, beads: 5, shadow: 6 };
-RL.SegBatch = class {
+export const LINE_STYLES = { neon: 0, tube: 1, ribbon: 2, brush: 3, flat: 4, beads: 5, shadow: 6 };
+export const SegBatch = class {
   constructor(gl, max) {
     this.gl = gl; this.max = max; this.n = 0;
     this.stride = 16; // x0,y0,x1,y1 | core,halo,r,g | b,a,white,style | along0, light, pad, pad
@@ -227,7 +227,7 @@ RL.SegBatch = class {
 };
 
 // Textured sprites (custom images / video atlases). Positions normalized, sizes in document px.
-RL.TexBatch = class {
+export const TexBatch = class {
   constructor(gl, max) {
     this.gl = gl; this.max = max; this.n = 0;
     this.stride = 16; // x,y,w,h | rot,r,g,b | a,u0,v0,u1 | v1,lumaAlpha,pad,pad
@@ -288,3 +288,6 @@ RL.TexBatch = class {
     this.n = 0;
   }
 };
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { SpriteBatch, LINE_STYLES, SegBatch, TexBatch });
