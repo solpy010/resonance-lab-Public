@@ -6,9 +6,14 @@
   "license": "Unlicense",
   "scripts": {
     "build": "node build.mjs",
-    "build:work": "node build.mjs --work"
+    "build:work": "node build.mjs --work",
+    "test": "node build.mjs && node tests/regress.mjs",
+    "test:update": "node build.mjs && node tests/regress.mjs --update"
   },
   "dependencies": {
     "mp4-muxer": "^5.2.2"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.1"
   }
 }

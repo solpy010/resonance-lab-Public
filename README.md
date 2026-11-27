@@ -36,6 +36,7 @@ build.mjs               src/ → app/RESONANCE_LAB.html (파일 하나로 실행
 app/RESONANCE_LAB.html  빌드 결과 (받아서 바로 실행)
 desktop/                Electron 데스크톱 셸 (main.cjs, preload.cjs, package.json, eb.json)
 tools/build_portable.sh Windows 포터블 exe · 폴더형 앱 빌드
+tests/                  회귀 검사 (regress.mjs, golden.json)
 docs/                   사용법 · 실행 안내 · 이미지
 ```
 
@@ -49,6 +50,19 @@ node build.mjs       # src/ → app/RESONANCE_LAB.html
 # Windows 포터블 exe (선택) — desktop/ffmpeg/ffmpeg.exe 를 직접 넣은 뒤 (https://ffmpeg.org/download.html, 저장소에는 없음)
 bash tools/build_portable.sh   # → dist/public/RESONANCE_LAB_v<버전>_portable.exe
 ```
+
+### 회귀 검사
+
+```bash
+npm test               # 빌드 + 검사: 프리셋 14개 + 리듬 다중참여 케이스 × 3시점 = 45장
+npm run test:update    # 기준 프레임 다시 저장 — 의도한 화면 변경일 때만
+```
+
+- 같은 조건을 두 번 렌더해 프레임이 같은지(결정론), 기준 프레임(`tests/golden.json`)과 같은지 확인합니다.
+- 렌더는 SwiftShader(CPU)로 해서 PC·그래픽카드와 상관없이 같은 결과가 나옵니다. 크롬·엣지가 설치돼 있어야 하며, 경로는 `CHROME_PATH`로 지정할 수 있습니다.
+- 크롬 버전 차이로 생기는 아주 작은 차이를 허용하려면 `RLAB_LOOSE=1 npm test`.
+
+앞으로의 구조 개선 계획은 [docs/개발_로드맵.md](docs/개발_로드맵.md)에 있습니다.
 
 ### 규칙
 - **결정론**: 같은 프로젝트·Seed면 어느 프레임을 다시 렌더해도 같아야 합니다. 렌더 계산에는 `Math.random()` 대신 `RL.rng` / `RL.hashSeed`를 쓰고,
