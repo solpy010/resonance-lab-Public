@@ -4,6 +4,7 @@ import * as webgl from './gl.js';
 import * as eng from './engine.js';
 import * as audioLib from './audio.js';
 import * as exportLib from './export.js';
+import * as registry from './core/registry.js';
 // RESONANCE LAB — application UI
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -37,7 +38,7 @@ export const App = class {
     this.initV4();
     let p = null;
     try { const s = localStorage.getItem('rlab.autosave'); if (s) p = JSON.parse(s); } catch (e) { p = null; }
-    this.loadProject(p || RL.presets.s1_2.make(), !p);
+    this.loadProject(p || registry.presets.s1_2.make(), !p);
     this.historyReset();
     new ResizeObserver(() => { this.layoutStage(); this.drawTimeline(); }).observe($('#viewport'));
     new ResizeObserver(() => this.drawTimeline()).observe($('#timeline'));
@@ -57,7 +58,7 @@ export const App = class {
     o.impact = Object.assign(eng.defaultProject().impact, (p || {}).impact || {});
     o.markers = (o.markers || []).filter(m => isFinite(m.t)).sort((a, b) => a.t - b.t);
     o.speedKeys = o.speedKeys || [];
-    o.layers = (o.layers || []).filter(l => RL.modules[l.type]).map(l => {
+    o.layers = (o.layers || []).filter(l => registry.modules[l.type]).map(l => {
       const fresh = eng.newLayer(l.type);
       const out = Object.assign(fresh, l);
       out.params = Object.assign(eng.newLayer(l.type).params, l.params || {});
@@ -103,10 +104,10 @@ export const App = class {
   buildStatic() {
     const ps = $('#preset');
     ps.append(h('option', { value: '', text: '— 씬 프리셋 불러오기 —' }));
-    for (const k in RL.presets) ps.append(h('option', { value: k, text: RL.presets[k].label }));
+    for (const k in registry.presets) ps.append(h('option', { value: k, text: registry.presets[k].label }));
     const add = $('#addBtns');
-    for (const k in RL.modules) {
-      const M = RL.modules[k];
+    for (const k in registry.modules) {
+      const M = registry.modules[k];
       add.append(h('button', { title: M.label + ' 레이어 추가', onclick: () => this.addLayer(k) }, h('span', { text: M.icon }), M.label));
     }
   }
@@ -135,7 +136,7 @@ export const App = class {
       const k = e.target.value; e.target.value = '';
       if (!k) return;
       if (P().layers.length && !confirm('현재 작업을 프리셋으로 바꿀까요? 저장하지 않은 변경은 사라집니다.')) return;
-      this.loadProject(RL.presets[k].make(), true);
+      this.loadProject(registry.presets[k].make(), true);
     });
     $('#size').addEventListener('change', e => {
       const v = e.target.value;
@@ -283,7 +284,7 @@ export const App = class {
     const P = this.project;
     if (!P.layers.length) ul.append(h('li', { class: 'empty' }, '위 버튼으로 레이어를 추가하세요'));
     for (const L of P.layers.slice().reverse()) {
-      const M = RL.modules[L.type];
+      const M = registry.modules[L.type];
       const li = h('li', { class: (L.id === this.sel ? 'sel ' : '') + (L.enabled ? '' : 'off'), onclick: () => { this.sel = L.id; this.kfSel = []; this.renderLayerList(); this.renderInspector(); this.drawTimeline(); }, oncontextmenu: e => this.layerCtx(e, L), title: '우클릭: 복사·붙여넣기' },
         h('button', { title: '보이기/숨기기', onclick: e => { e.stopPropagation(); this.layerAction(L.id, 'toggle'); } }, L.enabled ? '◉' : '○'),
         h('span', { class: 'ico', text: M.icon }),
@@ -303,7 +304,7 @@ export const App = class {
     const box = $('#inspector'); box.innerHTML = '';
     const L = this.selLayer();
     if (!L) { box.append(h('p', { class: 'empty' }, '레이어를 선택하세요.')); return; }
-    const M = RL.modules[L.type];
+    const M = registry.modules[L.type];
     box.append(h('div', { class: 'head' }, h('span', { class: 'type', text: M.icon + ' ' + M.label }),
       h('input', { type: 'text', value: L.name, oninput: e => { L.name = e.target.value; this.renderLayerList(); this.save(); } })));
     const groups = [];
@@ -671,7 +672,7 @@ export const App = class {
     if (P.speedKeys.length) rows.push({ name: '전체 속도', ks: P.speedKeys, keyId: '__speed__', layerId: null });
     const L = this.selLayer();
     if (L) for (const k in L.keys) if (L.keys[k] && L.keys[k].length) {
-      const sc = RL.modules[L.type].schema.find(x => x.id === k) || eng.layerCommonSchema.find(x => '_' + x.id === k);
+      const sc = registry.modules[L.type].schema.find(x => x.id === k) || eng.layerCommonSchema.find(x => '_' + x.id === k);
       rows.push({ name: (sc ? sc.label : k), ks: L.keys[k], keyId: k, layerId: L.id });
     }
     let ry = wy + wh + 6;

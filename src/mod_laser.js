@@ -2,12 +2,13 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // LASER — 레이저 아트: 가는 고휘도 빔(흰 심 + 색 번짐) · 안개 산란 · BPM 동기 패턴 · 레이저 그래픽(리사주·원·별·물결)
 
 (function () {
   const MAXB = 64;
   const PATTERNS = [['fan', '부채꼴 (펼쳐 흔들기)'], ['sweep', '평행 스캔'], ['cross', '교차 X'], ['rain', '위에서 내리꽂기'], ['tunnel', '방사 터널 (회전)'], ['sheet', '라이트 시트 (빽빽한 면)'], ['horizon', '가로 확산 빔'], ['graphic', '레이저 그래픽 (도형 그리기)']];
-  RL.modules.laser = {
+  registry.modules.laser = {
     label: '레이저 아트', icon: '⚡', blend: 'add',
     schema: [
       { id: 'pattern', label: '패턴', type: 'select', default: 'fan', group: '패턴', options: PATTERNS },

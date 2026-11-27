@@ -2,9 +2,10 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // PARTICLE — CPU 결정적 파티클 (컬 노이즈 난류, 깊이별 크기·속도·밝기 차등, 팬라이트 그리드)
 
-RL.modules.particle = {
+registry.modules.particle = {
   label: '파티클', icon: '∴', blend: 'add',
   schema: [
     { id: 'emitOn', label: '상시 방출', type: 'bool', default: true, group: '형태', hint: '끄면 계속 생성되던 파티클이 멈춤(마커 폭발만 남음)' },

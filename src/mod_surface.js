@@ -1,9 +1,10 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as registry from './core/registry.js';
 // SURFACE — 그라데이션 흐름 면 / 세로 그라데이션 면들의 커브 댄스 (씬 1_5)
 
-RL.modules.surface = {
+registry.modules.surface = {
   label: '면', icon: '▥', blend: 'over',
   schema: [
     { id: 'mode', label: '방식', type: 'select', options: [['flow', '그라데이션 흐름 면'], ['strips', '세로 면 — 고무줄 너울 + 컬러 흐름'], ['stripsOld', '세로 면 — 구버전(진동)']], default: 'strips', group: '형태', rerender: true, hint: '세로 면: 위·아래 끝은 고정, 가운데가 고무줄처럼 늘었다 줄며 너울거림. 커브 춤 정도 0이면 곧은 세로 면에 컬러만 흐름' },

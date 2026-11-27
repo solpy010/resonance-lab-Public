@@ -5,6 +5,7 @@ import * as webgl from './gl.js';
 import * as eng from './engine.js';
 import * as exportLib from './export.js';
 import * as uiApp from './ui.js';
+import * as registry from './core/registry.js';
 // RESONANCE LAB — menubar, resizable panels, zoom/pan, undo/redo, scene shelf (Ctrl+S), acts, asset loading
 
 Object.assign(uiApp.App.prototype, {
@@ -50,7 +51,7 @@ Object.assign(uiApp.App.prototype, {
     if (clip.assets && Object.keys(clip.assets).length) { P.assets = P.assets || {}; for (const id in clip.assets) if (!P.assets[id]) P.assets[id] = clip.assets[id]; this.engine.syncAssets && this.engine.syncAssets(); }
     const at = this.sel ? P.layers.findIndex(l => l.id === this.sel) + 1 : P.layers.length;
     const add = clip.layers.map(src => {
-      const fresh = RL.modules[src.type] ? eng.newLayer(src.type) : null; if (!fresh) return null;
+      const fresh = registry.modules[src.type] ? eng.newLayer(src.type) : null; if (!fresh) return null;
       const c = Object.assign(fresh, JSON.parse(JSON.stringify(src)));
       c.params = Object.assign(eng.newLayer(src.type).params, c.params || {});
       c.id = 'L' + Math.random().toString(36).slice(2, 8);
@@ -113,9 +114,9 @@ Object.assign(uiApp.App.prototype, {
   buildMenus() {
     const A = this, P = () => this.project;
     const tgView = (k) => ({ check: () => k in A.view ? !!A.view[k] : !!A.engine.view[k], fn: () => { const b = $(`.tg[data-view="${k}"]`); if (b) b.click(); } });
-    const presetItems = Object.keys(RL.presets).map(k => ({ label: RL.presets[k].label, fn: () => { if (P().layers.length && !confirm('현재 작업을 이 프리셋으로 바꿀까요? (Ctrl+Z로 되돌릴 수 있습니다)')) return; A.loadProject(RL.presets[k].make(), true); } }));
+    const presetItems = Object.keys(registry.presets).map(k => ({ label: registry.presets[k].label, fn: () => { if (P().layers.length && !confirm('현재 작업을 이 프리셋으로 바꿀까요? (Ctrl+Z로 되돌릴 수 있습니다)')) return; A.loadProject(registry.presets[k].make(), true); } }));
     const scaleItems = [['0.25', '25%'], ['0.5', '50%'], ['1', '100%']].map(([v, l]) => ({ label: '미리보기 해상도 ' + l, check: () => String(A.engine.scale) === v, fn: () => { $('#scale').value = v; $('#scale').dispatchEvent(new Event('change')); } }));
-    const addItems = Object.keys(RL.modules).map(k => ({ label: RL.modules[k].icon + '  ' + RL.modules[k].label + ' 추가', fn: () => A.addLayer(k) }));
+    const addItems = Object.keys(registry.modules).map(k => ({ label: registry.modules[k].icon + '  ' + registry.modules[k].label + ' 추가', fn: () => A.addLayer(k) }));
     const easeItems = ['quintOut', 'inOut', 'expoOut', 'linear', 'hold'].filter(e => webgl.ease[e]).map(e => ({ label: '키프레임 이징: ' + e, check: () => (A.prefs.ease || 'quintOut') === e, fn: () => { A.prefs.ease = e; A.savePrefs(); } }));
     this.menus = [
       ['파일', [
@@ -447,7 +448,7 @@ Object.assign(uiApp.App.prototype, {
           { label: '이 씬의 모든 레이어 → 현재 씬에 붙여넣기', dis: !(s.project && s.project.layers && s.project.layers.length), fn: () => this.pasteLayers({ layers: s.project.layers, assets: this.layerAssets(s.project.layers, s.project.assets), from: s.name }) },
           { label: '이 씬의 레이어 하나 골라 가져오기 ▸', dis: !(s.project && s.project.layers && s.project.layers.length), fn: () => setTimeout(() => this.ctxMenu(e.clientX + 12, e.clientY, [
             { label: '「' + s.name + '」 레이어 — 클릭하면 현재 씬에 붙여넣기', dis: true, fn: () => {} }, '-',
-            ...s.project.layers.slice().reverse().map(L => ({ label: (RL.modules[L.type] ? RL.modules[L.type].icon + '  ' : '') + L.name, dis: !RL.modules[L.type], fn: () => this.pasteLayers({ layers: [L], assets: this.layerAssets([L], s.project.assets), from: s.name }) })),
+            ...s.project.layers.slice().reverse().map(L => ({ label: (registry.modules[L.type] ? registry.modules[L.type].icon + '  ' : '') + L.name, dis: !registry.modules[L.type], fn: () => this.pasteLayers({ layers: [L], assets: this.layerAssets([L], s.project.assets), from: s.name }) })),
             '-', { label: '고른 레이어를 붙이지 않고 복사만 하려면: 그 씬을 열고 레이어 우클릭 → 복사', dis: true, fn: () => {} },
           ]), 0) },
           '-',

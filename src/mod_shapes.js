@@ -2,11 +2,12 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // SHAPES — 중력·반발·마찰에 반응하는 기하 도형 물리 (도형 간 충돌 + 다른 레이어 라인아트와 충돌)
 
 export const SHAPE_NAMES = { '원': 1, '사각': 0, '삼각': 2, '고리': 3, '육각': 4, '십자': 5, '마름모': 6, circle: 1, square: 0, triangle: 2, ring: 3, hex: 4, cross: 5, diamond: 6 };
 
-RL.modules.shapes = {
+registry.modules.shapes = {
   label: '기하 물리', icon: '◆', blend: 'over',
   schema: [
     { id: 'spawn', label: '생성 방식', type: 'select', options: [['rain', '위에서 떨어짐'], ['fountain', '아래에서 솟음'], ['faces', '면 상단에서'], ['fill', '시작 시 채움'], ['burst', '마커 때만(리듬 이펙트)']], default: 'rain', group: '형태' },

@@ -9,6 +9,11 @@
 
   <script type="module" crossorigin>// src/core/rl.js
 var RL = window.RL = window.RL || {};
+// src/core/registry.js
+var modules = {};
+var presets = {};
+RL.modules = modules;
+RL.presets = presets;
 // src/gl.js
 var VS = `#version 300 es
 layout(location=0) in vec2 p;
@@ -1082,7 +1087,6 @@ var drawBuiltin = function(name) {
 };
 Object.assign(RL, { drawBuiltin });
 // src/engine.js
-RL.modules = {};
 var FACE_NAMES = "ABCDEFGHIJKL".split("");
 var layerCommonSchema = [
 	{
@@ -1260,7 +1264,7 @@ var defaultProject = () => ({
 	layers: []
 });
 var newLayer = function(type, overrides) {
-	const M = RL.modules[type];
+	const M = modules[type];
 	const params = {};
 	for (const s of M.schema) params[s.id] = Array.isArray(s.default) ? s.default.slice() : s.default;
 	return Object.assign({
@@ -1468,7 +1472,7 @@ var Engine = class {
 		for (const def of want) {
 			let L = this.layers.find((x) => x.id === def.id && x.type === def.type);
 			if (!L) {
-				const M = RL.modules[def.type];
+				const M = modules[def.type];
 				if (!M) continue;
 				L = {
 					id: def.id,
@@ -1540,7 +1544,7 @@ var Engine = class {
 		return out;
 	}
 	evalLayer(L, t) {
-		const def = L.def, M = RL.modules[def.type];
+		const def = L.def, M = modules[def.type];
 		const cur = {};
 		for (const s of M.schema) {
 			const v = def.params[s.id];
@@ -1877,7 +1881,7 @@ Object.assign(RL, {
 	drawImageBurst
 });
 // src/mod_wave.js
-RL.modules.wave = {
+modules.wave = {
 	label: "파장",
 	icon: "◎",
 	blend: "add",
@@ -2627,7 +2631,7 @@ RL.modules.wave = {
 	}
 };
 // src/mod_fluid.js
-RL.modules.fluid = {
+modules.fluid = {
 	label: "유체",
 	icon: "≈",
 	blend: "over",
@@ -3178,7 +3182,7 @@ RL.modules.fluid = {
 	}
 };
 // src/mod_particle.js
-RL.modules.particle = {
+modules.particle = {
 	label: "파티클",
 	icon: "∴",
 	blend: "add",
@@ -3726,7 +3730,7 @@ RL.modules.particle = {
 	}
 };
 // src/mod_dot.js
-RL.modules.dot = {
+modules.dot = {
 	label: "도트",
 	icon: "⠿",
 	blend: "over",
@@ -4372,7 +4376,7 @@ RL.modules.dot = {
 	}
 };
 // src/mod_line.js
-RL.modules.line = {
+modules.line = {
 	label: "라인",
 	icon: "∿",
 	blend: "add",
@@ -5557,7 +5561,7 @@ RL.modules.line = {
 	}
 };
 // src/mod_beam.js
-RL.modules.beam = {
+modules.beam = {
 	label: "빛·빔",
 	icon: "⟟",
 	blend: "add",
@@ -5886,7 +5890,7 @@ RL.modules.beam = {
 	}
 };
 // src/mod_surface.js
-RL.modules.surface = {
+modules.surface = {
 	label: "면",
 	icon: "▥",
 	blend: "over",
@@ -6804,7 +6808,7 @@ var SHAPE_NAMES = {
 	cross: 5,
 	diamond: 6
 };
-RL.modules.shapes = {
+modules.shapes = {
 	label: "기하 물리",
 	icon: "◆",
 	blend: "over",
@@ -7661,7 +7665,7 @@ function hueRot(c, deg) {
 		y - 1.106 * i2 + 1.703 * q2
 	].map((v) => Math.max(0, Math.min(1, v)));
 }
-RL.modules.rhythm = {
+modules.rhythm = {
 	label: "리듬게임",
 	icon: "♪",
 	blend: "over",
@@ -8855,7 +8859,7 @@ RL.modules.rhythm = {
 	}
 };
 // src/mod_floaters.js
-RL.modules.floaters = {
+modules.floaters = {
 	label: "오브젝트 유영",
 	icon: "◎",
 	blend: "over",
@@ -10125,664 +10129,663 @@ Object.assign(RL, { ROBOT_MESH });
 		};
 	}
 	let MESH = null;
-	const schema = [
-		{
-			id: "count",
-			label: "로봇팔 수",
-			type: "range",
-			min: 1,
-			max: 24,
-			step: 1,
-			default: 6,
-			group: "배치"
-		},
-		{
-			id: "layout",
-			label: "배치 방식",
-			type: "select",
-			default: "row",
-			group: "배치",
-			options: [
-				["row", "일렬 (좌우 균등)"],
-				["faces", "면마다 (A~F 중앙)"],
-				["zigzag", "앞뒤 지그재그 2열"],
-				["arc", "원호 (가운데 뒤로)"],
-				["vee", "V자 (가운데 앞으로)"],
-				["scatter", "무작위 흩뿌림"]
-			]
-		},
-		{
-			id: "spanStart",
-			label: "배치 범위 시작(좌)",
-			type: "range",
-			min: -.2,
-			max: 1.2,
-			step: .005,
-			default: .05,
-			group: "배치",
-			key: true
-		},
-		{
-			id: "spanEnd",
-			label: "배치 범위 끝(우)",
-			type: "range",
-			min: -.2,
-			max: 1.2,
-			step: .005,
-			default: .85,
-			group: "배치",
-			key: true
-		},
-		{
-			id: "posX",
-			label: "위치 X (좌우 이동)",
-			type: "range",
-			min: -1,
-			max: 1,
-			step: .001,
-			default: 0,
-			group: "배치",
-			key: true,
-			hint: "전체 로봇팔을 화면 폭 기준으로 좌우 이동 (0.1 = 폭의 10%)"
-		},
-		{
-			id: "posY",
-			label: "위치 Y (바닥 높이)",
-			type: "range",
-			min: -.6,
-			max: 1,
-			step: .001,
-			default: .06,
-			group: "배치",
-			key: true,
-			hint: "베이스가 놓이는 높이 (0 = 화면 바닥)"
-		},
-		{
-			id: "posZ",
-			label: "위치 Z (앞뒤)",
-			type: "range",
-			min: -1,
-			max: 1,
-			step: .01,
-			default: 0,
-			group: "배치",
-			key: true,
-			hint: "−는 관객 쪽 앞으로(커짐), +는 뒤로(작아지고 위로)"
-		},
-		{
-			id: "depthSpread",
-			label: "앞뒤 간격",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .5,
-			group: "배치",
-			key: true,
-			hint: "지그재그·원호·V자·무작위 배치에서 앞뒤로 벌어지는 정도"
-		},
-		{
-			id: "scale",
-			label: "스케일",
-			type: "range",
-			min: .1,
-			max: 3,
-			step: .01,
-			default: 1,
-			group: "배치",
-			key: true
-		},
-		{
-			id: "sizeVar",
-			label: "크기 편차",
-			type: "range",
-			min: 0,
-			max: .6,
-			step: .01,
-			default: 0,
-			group: "배치"
-		},
-		{
-			id: "gather",
-			label: "집결 (한곳으로 모이기)",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: 0,
-			group: "배치",
-			key: true
-		},
-		{
-			id: "gatherX",
-			label: "집결 위치 X",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .005,
-			default: .5,
-			group: "배치",
-			key: true
-		},
-		{
-			id: "facing",
-			label: "바라보는 방향(도)",
-			type: "range",
-			min: -180,
-			max: 180,
-			step: 1,
-			default: 0,
-			group: "배치",
-			key: true,
-			hint: "0=오른쪽으로 숙임, 180=왼쪽으로 숙임"
-		},
-		{
-			id: "facingMode",
-			label: "방향 배치",
-			type: "select",
-			default: "same",
-			group: "배치",
-			options: [
-				["same", "모두 같은 방향"],
-				["alt", "번갈아 마주보기"],
-				["center", "가운데를 향해"],
-				["out", "바깥을 향해"],
-				["random", "무작위"]
-			]
-		},
-		{
-			id: "offsets",
-			label: "개별 위치 (번호:x,y,z,스케일; …)",
-			type: "text",
-			default: "",
-			group: "배치",
-			hint: "예) 1:0.05,0,0.3,1.2; 4:-0.03,0.02,-0.4  → 1번을 오른쪽·뒤·1.2배, 4번을 왼쪽·위·앞. 번호는 왼쪽부터 1"
-		},
-		{
-			id: "depthFade",
-			label: "뒤쪽 어둡게",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .35,
-			group: "배치"
-		},
-		{
-			id: "camYaw",
-			label: "시점 방위(도)",
-			type: "range",
-			min: -180,
-			max: 180,
-			step: 1,
-			default: 18,
-			group: "시점",
-			key: true,
-			hint: "0=정측면(숙인 실루엣이 가장 잘 보임), 90=정면"
-		},
-		{
-			id: "camPitch",
-			label: "시점 높이(도)",
-			type: "range",
-			min: -30,
-			max: 70,
-			step: 1,
-			default: 6,
-			group: "시점",
-			key: true,
-			hint: "+는 위에서 내려다봄, −는 아래에서 올려다봄"
-		},
-		{
-			id: "persp",
-			label: "원근 강도",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .35,
-			group: "시점"
-		},
-		{
-			id: "style",
-			label: "춤 스타일",
-			type: "select",
-			default: "edm",
-			group: "움직임",
-			options: Object.keys(STYLES).map((k) => [k, STYLES[k].label])
-		},
-		{
-			id: "bpm",
-			label: "큐시트 템포 (BPM)",
-			type: "range",
-			min: 40,
-			max: 200,
-			step: 1,
-			default: 124,
-			group: "움직임"
-		},
-		{
-			id: "tempo",
-			label: "동작 속도 (느리게↔빠르게)",
-			type: "range",
-			min: .05,
-			max: 3,
-			step: .01,
-			default: 1,
-			group: "움직임",
-			key: true,
-			hint: "1 = BPM 그대로. 0.5 = 반 박자 느낌으로 서서히, 2 = 두 배 빠르게. 키프레임으로 가속·감속"
-		},
-		{
-			id: "beatOffset",
-			label: "박자 시작 오프셋(초)",
-			type: "range",
-			min: -2,
-			max: 2,
-			step: .01,
-			default: 0,
-			group: "움직임"
-		},
-		{
-			id: "amount",
-			label: "동작 크기",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작",
-			key: true
-		},
-		{
-			id: "energy",
-			label: "동작 에너지 (부드러움↔절도)",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .55,
-			group: "동작",
-			key: true
-		},
-		{
-			id: "diversity",
-			label: "동작 다양성 (통일↔제각각)",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .2,
-			group: "동작",
-			key: true,
-			hint: "0 = 모두 같은 군무, 1 = 로봇마다 다른 박자·크기·동작 조합"
-		},
-		{
-			id: "phaseFlow",
-			label: "위상 흐름 (차례로 따라하기)",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .25,
-			group: "동작",
-			key: true,
-			hint: "0 = 동시에, 올리면 한 대씩 박자를 늦게 따라 해 파도처럼 번짐"
-		},
-		{
-			id: "flowDir",
-			label: "흐름 방향",
-			type: "select",
-			default: "lr",
-			group: "동작",
-			options: [
-				["lr", "좌 → 우 (A→F)"],
-				["rl", "우 → 좌 (F→A)"],
-				["co", "가운데 → 바깥"],
-				["oc", "바깥 → 가운데"]
-			]
-		},
-		{
-			id: "crouch",
-			label: "구부정함 (기본 자세)",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .65,
-			group: "동작",
-			key: true,
-			hint: "높을수록 몸을 깊게 숙인 자세. 팔이 위로 곧게 펴지는 자세는 항상 제한됩니다"
-		},
-		{
-			id: "wSway",
-			label: "좌우 회전 (몸통)",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작 어휘",
-			key: true
-		},
-		{
-			id: "wBob",
-			label: "박자 바운스 (숙였다 펴기)",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작 어휘",
-			key: true
-		},
-		{
-			id: "wRipple",
-			label: "관절 물결 (어깨→팔꿈치→손목)",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작 어휘",
-			key: true
-		},
-		{
-			id: "wWrist",
-			label: "손목 꺾기·비틀기",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작 어휘",
-			key: true
-		},
-		{
-			id: "wCircle",
-			label: "원 그리기",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작 어휘",
-			key: true
-		},
-		{
-			id: "wLean",
-			label: "앞뒤로 기울이기",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작 어휘",
-			key: true
-		},
-		{
-			id: "wHit",
-			label: "포즈 끊어 멈추기",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작 어휘",
-			key: true
-		},
-		{
-			id: "wSpin",
-			label: "크게 돌기 (회전)",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "동작 어휘",
-			key: true
-		},
-		{
-			id: "material",
-			label: "재질",
-			type: "select",
-			default: "neon",
-			group: "재질",
-			options: [
-				["plastic", "원본 플라스틱"],
-				["neon", "디지털 네온"],
-				["solid", "솔리드 2D (평면 단색)"],
-				["chrome", "크롬 메탈"],
-				["holo", "홀로그램 와이어"]
-			]
-		},
-		{
-			id: "rim",
-			label: "가장자리 발광 (네온·홀로)",
-			type: "range",
-			min: 0,
-			max: 4,
-			step: .01,
-			default: 1.1,
-			group: "재질",
-			key: true
-		},
-		{
-			id: "bodyDark",
-			label: "몸체 밝기 (네온)",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .22,
-			group: "재질",
-			key: true
-		},
-		{
-			id: "bodyAlpha",
-			label: "몸체 불투명도",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .92,
-			group: "재질",
-			key: true
-		},
-		{
-			id: "gloss",
-			label: "광택",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .55,
-			group: "재질"
-		},
-		{
-			id: "edge",
-			label: "모서리 라인",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: .7,
-			group: "재질",
-			key: true
-		},
-		{
-			id: "edgeWidth",
-			label: "라인 두께(px)",
-			type: "range",
-			min: .5,
-			max: 12,
-			step: .1,
-			default: 1.6,
-			group: "재질"
-		},
-		{
-			id: "edgeHalo",
-			label: "라인 번짐",
-			type: "range",
-			min: 0,
-			max: 20,
-			step: .1,
-			default: 2.5,
-			group: "재질"
-		},
-		{
-			id: "edgeWhite",
-			label: "라인 흰 심",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .55,
-			group: "재질"
-		},
-		{
-			id: "xray",
-			label: "뒤쪽 라인도 보이기 (투시)",
-			type: "bool",
-			default: false,
-			group: "재질"
-		},
-		{
-			id: "colorMode",
-			label: "색 배치",
-			type: "select",
-			default: "flow",
-			group: "색상",
-			options: [
-				["original", "재질 원색"],
-				["single", "단색 (첫 색)"],
-				["perArm", "로봇마다 순서대로"],
-				["flow", "색 흐름 (위치 따라 이동)"],
-				["random", "랜덤 흐름"]
-			]
-		},
-		{
-			id: "colors",
-			label: "팔레트",
-			type: "colors",
-			default: [
-				"#ff2fb3",
-				"#7a3cff",
-				"#22d8ff",
-				"#2f6bff",
-				"#ffe03a",
-				"#2dff9b"
-			],
-			group: "색상"
-		},
-		{
-			id: "flowSpeed",
-			label: "색 흐름 속도",
-			type: "range",
-			min: -2,
-			max: 2,
-			step: .01,
-			default: .25,
-			group: "색상",
-			key: true,
-			hint: "+ = 좌→우, − = 우→좌"
-		},
-		{
-			id: "flowScale",
-			label: "색 흐름 폭",
-			type: "range",
-			min: .1,
-			max: 4,
-			step: .01,
-			default: 1,
-			group: "색상",
-			hint: "화면 폭 안에 팔레트가 몇 바퀴 들어가는지"
-		},
-		{
-			id: "randomFlow",
-			label: "랜덤 움직임 섞기",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .15,
-			group: "색상",
-			key: true
-		},
-		{
-			id: "accent",
-			label: "관절 캡·베이스 색",
-			type: "color",
-			default: "#c9d2dc",
-			group: "색상"
-		},
-		{
-			id: "accentMix",
-			label: "관절 캡 색 분리",
-			type: "range",
-			min: 0,
-			max: 1,
-			step: .01,
-			default: .35,
-			group: "색상"
-		},
-		{
-			id: "intensity",
-			label: "밝기",
-			type: "range",
-			min: 0,
-			max: 4,
-			step: .01,
-			default: 1,
-			group: "색상",
-			key: true
-		},
-		{
-			id: "beatFlash",
-			label: "박자 발광",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: .25,
-			group: "색상",
-			key: true
-		},
-		{
-			id: "hitPose",
-			label: "마커 타격 포즈",
-			type: "range",
-			min: 0,
-			max: 2,
-			step: .01,
-			default: 1,
-			group: "반응"
-		},
-		{
-			id: "hitFlash",
-			label: "마커 발광",
-			type: "range",
-			min: 0,
-			max: 4,
-			step: .01,
-			default: 1.2,
-			group: "반응"
-		},
-		{
-			id: "hitDecay",
-			label: "타격 잔향(초)",
-			type: "range",
-			min: .05,
-			max: 2,
-			step: .01,
-			default: .45,
-			group: "반응"
-		}
-	];
-	RL.modules.robot = {
+	modules.robot = {
 		label: "로봇팔 군무",
 		icon: "⊾",
 		blend: "over",
-		schema,
+		schema: [
+			{
+				id: "count",
+				label: "로봇팔 수",
+				type: "range",
+				min: 1,
+				max: 24,
+				step: 1,
+				default: 6,
+				group: "배치"
+			},
+			{
+				id: "layout",
+				label: "배치 방식",
+				type: "select",
+				default: "row",
+				group: "배치",
+				options: [
+					["row", "일렬 (좌우 균등)"],
+					["faces", "면마다 (A~F 중앙)"],
+					["zigzag", "앞뒤 지그재그 2열"],
+					["arc", "원호 (가운데 뒤로)"],
+					["vee", "V자 (가운데 앞으로)"],
+					["scatter", "무작위 흩뿌림"]
+				]
+			},
+			{
+				id: "spanStart",
+				label: "배치 범위 시작(좌)",
+				type: "range",
+				min: -.2,
+				max: 1.2,
+				step: .005,
+				default: .05,
+				group: "배치",
+				key: true
+			},
+			{
+				id: "spanEnd",
+				label: "배치 범위 끝(우)",
+				type: "range",
+				min: -.2,
+				max: 1.2,
+				step: .005,
+				default: .85,
+				group: "배치",
+				key: true
+			},
+			{
+				id: "posX",
+				label: "위치 X (좌우 이동)",
+				type: "range",
+				min: -1,
+				max: 1,
+				step: .001,
+				default: 0,
+				group: "배치",
+				key: true,
+				hint: "전체 로봇팔을 화면 폭 기준으로 좌우 이동 (0.1 = 폭의 10%)"
+			},
+			{
+				id: "posY",
+				label: "위치 Y (바닥 높이)",
+				type: "range",
+				min: -.6,
+				max: 1,
+				step: .001,
+				default: .06,
+				group: "배치",
+				key: true,
+				hint: "베이스가 놓이는 높이 (0 = 화면 바닥)"
+			},
+			{
+				id: "posZ",
+				label: "위치 Z (앞뒤)",
+				type: "range",
+				min: -1,
+				max: 1,
+				step: .01,
+				default: 0,
+				group: "배치",
+				key: true,
+				hint: "−는 관객 쪽 앞으로(커짐), +는 뒤로(작아지고 위로)"
+			},
+			{
+				id: "depthSpread",
+				label: "앞뒤 간격",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .5,
+				group: "배치",
+				key: true,
+				hint: "지그재그·원호·V자·무작위 배치에서 앞뒤로 벌어지는 정도"
+			},
+			{
+				id: "scale",
+				label: "스케일",
+				type: "range",
+				min: .1,
+				max: 3,
+				step: .01,
+				default: 1,
+				group: "배치",
+				key: true
+			},
+			{
+				id: "sizeVar",
+				label: "크기 편차",
+				type: "range",
+				min: 0,
+				max: .6,
+				step: .01,
+				default: 0,
+				group: "배치"
+			},
+			{
+				id: "gather",
+				label: "집결 (한곳으로 모이기)",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: 0,
+				group: "배치",
+				key: true
+			},
+			{
+				id: "gatherX",
+				label: "집결 위치 X",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .005,
+				default: .5,
+				group: "배치",
+				key: true
+			},
+			{
+				id: "facing",
+				label: "바라보는 방향(도)",
+				type: "range",
+				min: -180,
+				max: 180,
+				step: 1,
+				default: 0,
+				group: "배치",
+				key: true,
+				hint: "0=오른쪽으로 숙임, 180=왼쪽으로 숙임"
+			},
+			{
+				id: "facingMode",
+				label: "방향 배치",
+				type: "select",
+				default: "same",
+				group: "배치",
+				options: [
+					["same", "모두 같은 방향"],
+					["alt", "번갈아 마주보기"],
+					["center", "가운데를 향해"],
+					["out", "바깥을 향해"],
+					["random", "무작위"]
+				]
+			},
+			{
+				id: "offsets",
+				label: "개별 위치 (번호:x,y,z,스케일; …)",
+				type: "text",
+				default: "",
+				group: "배치",
+				hint: "예) 1:0.05,0,0.3,1.2; 4:-0.03,0.02,-0.4  → 1번을 오른쪽·뒤·1.2배, 4번을 왼쪽·위·앞. 번호는 왼쪽부터 1"
+			},
+			{
+				id: "depthFade",
+				label: "뒤쪽 어둡게",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .35,
+				group: "배치"
+			},
+			{
+				id: "camYaw",
+				label: "시점 방위(도)",
+				type: "range",
+				min: -180,
+				max: 180,
+				step: 1,
+				default: 18,
+				group: "시점",
+				key: true,
+				hint: "0=정측면(숙인 실루엣이 가장 잘 보임), 90=정면"
+			},
+			{
+				id: "camPitch",
+				label: "시점 높이(도)",
+				type: "range",
+				min: -30,
+				max: 70,
+				step: 1,
+				default: 6,
+				group: "시점",
+				key: true,
+				hint: "+는 위에서 내려다봄, −는 아래에서 올려다봄"
+			},
+			{
+				id: "persp",
+				label: "원근 강도",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .35,
+				group: "시점"
+			},
+			{
+				id: "style",
+				label: "춤 스타일",
+				type: "select",
+				default: "edm",
+				group: "움직임",
+				options: Object.keys(STYLES).map((k) => [k, STYLES[k].label])
+			},
+			{
+				id: "bpm",
+				label: "큐시트 템포 (BPM)",
+				type: "range",
+				min: 40,
+				max: 200,
+				step: 1,
+				default: 124,
+				group: "움직임"
+			},
+			{
+				id: "tempo",
+				label: "동작 속도 (느리게↔빠르게)",
+				type: "range",
+				min: .05,
+				max: 3,
+				step: .01,
+				default: 1,
+				group: "움직임",
+				key: true,
+				hint: "1 = BPM 그대로. 0.5 = 반 박자 느낌으로 서서히, 2 = 두 배 빠르게. 키프레임으로 가속·감속"
+			},
+			{
+				id: "beatOffset",
+				label: "박자 시작 오프셋(초)",
+				type: "range",
+				min: -2,
+				max: 2,
+				step: .01,
+				default: 0,
+				group: "움직임"
+			},
+			{
+				id: "amount",
+				label: "동작 크기",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작",
+				key: true
+			},
+			{
+				id: "energy",
+				label: "동작 에너지 (부드러움↔절도)",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .55,
+				group: "동작",
+				key: true
+			},
+			{
+				id: "diversity",
+				label: "동작 다양성 (통일↔제각각)",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .2,
+				group: "동작",
+				key: true,
+				hint: "0 = 모두 같은 군무, 1 = 로봇마다 다른 박자·크기·동작 조합"
+			},
+			{
+				id: "phaseFlow",
+				label: "위상 흐름 (차례로 따라하기)",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .25,
+				group: "동작",
+				key: true,
+				hint: "0 = 동시에, 올리면 한 대씩 박자를 늦게 따라 해 파도처럼 번짐"
+			},
+			{
+				id: "flowDir",
+				label: "흐름 방향",
+				type: "select",
+				default: "lr",
+				group: "동작",
+				options: [
+					["lr", "좌 → 우 (A→F)"],
+					["rl", "우 → 좌 (F→A)"],
+					["co", "가운데 → 바깥"],
+					["oc", "바깥 → 가운데"]
+				]
+			},
+			{
+				id: "crouch",
+				label: "구부정함 (기본 자세)",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .65,
+				group: "동작",
+				key: true,
+				hint: "높을수록 몸을 깊게 숙인 자세. 팔이 위로 곧게 펴지는 자세는 항상 제한됩니다"
+			},
+			{
+				id: "wSway",
+				label: "좌우 회전 (몸통)",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작 어휘",
+				key: true
+			},
+			{
+				id: "wBob",
+				label: "박자 바운스 (숙였다 펴기)",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작 어휘",
+				key: true
+			},
+			{
+				id: "wRipple",
+				label: "관절 물결 (어깨→팔꿈치→손목)",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작 어휘",
+				key: true
+			},
+			{
+				id: "wWrist",
+				label: "손목 꺾기·비틀기",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작 어휘",
+				key: true
+			},
+			{
+				id: "wCircle",
+				label: "원 그리기",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작 어휘",
+				key: true
+			},
+			{
+				id: "wLean",
+				label: "앞뒤로 기울이기",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작 어휘",
+				key: true
+			},
+			{
+				id: "wHit",
+				label: "포즈 끊어 멈추기",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작 어휘",
+				key: true
+			},
+			{
+				id: "wSpin",
+				label: "크게 돌기 (회전)",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "동작 어휘",
+				key: true
+			},
+			{
+				id: "material",
+				label: "재질",
+				type: "select",
+				default: "neon",
+				group: "재질",
+				options: [
+					["plastic", "원본 플라스틱"],
+					["neon", "디지털 네온"],
+					["solid", "솔리드 2D (평면 단색)"],
+					["chrome", "크롬 메탈"],
+					["holo", "홀로그램 와이어"]
+				]
+			},
+			{
+				id: "rim",
+				label: "가장자리 발광 (네온·홀로)",
+				type: "range",
+				min: 0,
+				max: 4,
+				step: .01,
+				default: 1.1,
+				group: "재질",
+				key: true
+			},
+			{
+				id: "bodyDark",
+				label: "몸체 밝기 (네온)",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .22,
+				group: "재질",
+				key: true
+			},
+			{
+				id: "bodyAlpha",
+				label: "몸체 불투명도",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .92,
+				group: "재질",
+				key: true
+			},
+			{
+				id: "gloss",
+				label: "광택",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .55,
+				group: "재질"
+			},
+			{
+				id: "edge",
+				label: "모서리 라인",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: .7,
+				group: "재질",
+				key: true
+			},
+			{
+				id: "edgeWidth",
+				label: "라인 두께(px)",
+				type: "range",
+				min: .5,
+				max: 12,
+				step: .1,
+				default: 1.6,
+				group: "재질"
+			},
+			{
+				id: "edgeHalo",
+				label: "라인 번짐",
+				type: "range",
+				min: 0,
+				max: 20,
+				step: .1,
+				default: 2.5,
+				group: "재질"
+			},
+			{
+				id: "edgeWhite",
+				label: "라인 흰 심",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .55,
+				group: "재질"
+			},
+			{
+				id: "xray",
+				label: "뒤쪽 라인도 보이기 (투시)",
+				type: "bool",
+				default: false,
+				group: "재질"
+			},
+			{
+				id: "colorMode",
+				label: "색 배치",
+				type: "select",
+				default: "flow",
+				group: "색상",
+				options: [
+					["original", "재질 원색"],
+					["single", "단색 (첫 색)"],
+					["perArm", "로봇마다 순서대로"],
+					["flow", "색 흐름 (위치 따라 이동)"],
+					["random", "랜덤 흐름"]
+				]
+			},
+			{
+				id: "colors",
+				label: "팔레트",
+				type: "colors",
+				default: [
+					"#ff2fb3",
+					"#7a3cff",
+					"#22d8ff",
+					"#2f6bff",
+					"#ffe03a",
+					"#2dff9b"
+				],
+				group: "색상"
+			},
+			{
+				id: "flowSpeed",
+				label: "색 흐름 속도",
+				type: "range",
+				min: -2,
+				max: 2,
+				step: .01,
+				default: .25,
+				group: "색상",
+				key: true,
+				hint: "+ = 좌→우, − = 우→좌"
+			},
+			{
+				id: "flowScale",
+				label: "색 흐름 폭",
+				type: "range",
+				min: .1,
+				max: 4,
+				step: .01,
+				default: 1,
+				group: "색상",
+				hint: "화면 폭 안에 팔레트가 몇 바퀴 들어가는지"
+			},
+			{
+				id: "randomFlow",
+				label: "랜덤 움직임 섞기",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .15,
+				group: "색상",
+				key: true
+			},
+			{
+				id: "accent",
+				label: "관절 캡·베이스 색",
+				type: "color",
+				default: "#c9d2dc",
+				group: "색상"
+			},
+			{
+				id: "accentMix",
+				label: "관절 캡 색 분리",
+				type: "range",
+				min: 0,
+				max: 1,
+				step: .01,
+				default: .35,
+				group: "색상"
+			},
+			{
+				id: "intensity",
+				label: "밝기",
+				type: "range",
+				min: 0,
+				max: 4,
+				step: .01,
+				default: 1,
+				group: "색상",
+				key: true
+			},
+			{
+				id: "beatFlash",
+				label: "박자 발광",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: .25,
+				group: "색상",
+				key: true
+			},
+			{
+				id: "hitPose",
+				label: "마커 타격 포즈",
+				type: "range",
+				min: 0,
+				max: 2,
+				step: .01,
+				default: 1,
+				group: "반응"
+			},
+			{
+				id: "hitFlash",
+				label: "마커 발광",
+				type: "range",
+				min: 0,
+				max: 4,
+				step: .01,
+				default: 1.2,
+				group: "반응"
+			},
+			{
+				id: "hitDecay",
+				label: "타격 잔향(초)",
+				type: "range",
+				min: .05,
+				max: 2,
+				step: .01,
+				default: .45,
+				group: "반응"
+			}
+		],
 		styles: STYLES,
 		create(engine, L) {
 			const gl = engine.gl;
@@ -11718,8 +11721,7 @@ Object.assign(RL, { ROBOT_MESH });
 		});
 		return cache[k] = s;
 	}
-	const shapeOpts = Object.keys(SHAPES).map((k) => [k, SHAPES[k].label]);
-	RL.modules.neongeo = {
+	modules.neongeo = {
 		label: "네온 입체 기하",
 		icon: "◇",
 		blend: "add",
@@ -11734,7 +11736,7 @@ Object.assign(RL, { ROBOT_MESH });
 					["mixSolid", "입체 섞기 (순서대로)"],
 					["mixPattern", "무늬 섞기 (순서대로)"],
 					["mixAll", "모두 섞기"],
-					...shapeOpts
+					...Object.keys(SHAPES).map((k) => [k, SHAPES[k].label])
 				]
 			},
 			{
@@ -12413,17 +12415,7 @@ Object.assign(RL, { ROBOT_MESH });
 // src/mod_laser.js
 (function() {
 	const MAXB = 64;
-	const PATTERNS = [
-		["fan", "부채꼴 (펼쳐 흔들기)"],
-		["sweep", "평행 스캔"],
-		["cross", "교차 X"],
-		["rain", "위에서 내리꽂기"],
-		["tunnel", "방사 터널 (회전)"],
-		["sheet", "라이트 시트 (빽빽한 면)"],
-		["horizon", "가로 확산 빔"],
-		["graphic", "레이저 그래픽 (도형 그리기)"]
-	];
-	RL.modules.laser = {
+	modules.laser = {
 		label: "레이저 아트",
 		icon: "⚡",
 		blend: "add",
@@ -12434,7 +12426,16 @@ Object.assign(RL, { ROBOT_MESH });
 				type: "select",
 				default: "fan",
 				group: "패턴",
-				options: PATTERNS
+				options: [
+					["fan", "부채꼴 (펼쳐 흔들기)"],
+					["sweep", "평행 스캔"],
+					["cross", "교차 X"],
+					["rain", "위에서 내리꽂기"],
+					["tunnel", "방사 터널 (회전)"],
+					["sheet", "라이트 시트 (빽빽한 면)"],
+					["horizon", "가로 확산 빔"],
+					["graphic", "레이저 그래픽 (도형 그리기)"]
+				]
 			},
 			{
 				id: "sources",
@@ -13126,7 +13127,6 @@ Object.assign(RL, { ROBOT_MESH });
 	};
 })();
 // src/presets.js
-RL.presets = {};
 (function() {
 	const L = (type, o, params, react, keys) => {
 		const l = newLayer(type, o);
@@ -13149,11 +13149,11 @@ RL.presets = {};
 		return out;
 	};
 	const base = (o) => Object.assign(defaultProject(), o);
-	RL.presets["empty"] = {
+	presets.empty = {
 		label: "빈 프로젝트",
 		make: () => base({ name: "새 프로젝트" })
 	};
-	RL.presets["s0_1"] = {
+	presets.s0_1 = {
 		label: "씬 0_1",
 		make: () => base({
 			name: "S0-1",
@@ -13214,7 +13214,7 @@ RL.presets = {};
 			}, { enabled: false })]
 		})
 	};
-	RL.presets["s1_1"] = {
+	presets.s1_1 = {
 		label: "씬 1_1",
 		make: () => base({
 			name: "S1-1",
@@ -13288,7 +13288,7 @@ RL.presets = {};
 			})]
 		})
 	};
-	RL.presets["s1_2"] = {
+	presets.s1_2 = {
 		label: "씬 1_2",
 		make: () => base({
 			name: "S1-2",
@@ -13425,7 +13425,7 @@ RL.presets = {};
 			]
 		})
 	};
-	RL.presets["s1_3"] = {
+	presets.s1_3 = {
 		label: "씬 1_3",
 		make: () => base({
 			name: "S1-3",
@@ -13486,7 +13486,7 @@ RL.presets = {};
 			})]
 		})
 	};
-	RL.presets["s1_4"] = {
+	presets.s1_4 = {
 		label: "씬 1_4",
 		make: () => base({
 			name: "S1-4",
@@ -13550,7 +13550,7 @@ RL.presets = {};
 			})]
 		})
 	};
-	RL.presets["s1_5"] = {
+	presets.s1_5 = {
 		label: "씬 1_5",
 		make: () => base({
 			name: "S1-5",
@@ -13675,7 +13675,7 @@ RL.presets = {};
 			]
 		})
 	};
-	RL.presets["s1_6"] = {
+	presets.s1_6 = {
 		label: "씬 1_6",
 		make: () => base({
 			name: "S1-6",
@@ -13816,7 +13816,7 @@ RL.presets = {};
 			]
 		})
 	};
-	RL.presets["fx_hit"] = {
+	presets.fx_hit = {
 		label: "씬 2_2",
 		make: () => base({
 			name: "S2-2",
@@ -13885,7 +13885,7 @@ RL.presets = {};
 			})]
 		})
 	};
-	RL.presets["s4_2"] = {
+	presets.s4_2 = {
 		label: "씬 4_2",
 		make: () => base({
 			name: "S4-2",
@@ -13955,7 +13955,7 @@ RL.presets = {};
 			}, { enabled: false })]
 		})
 	};
-	RL.presets["s5_2"] = {
+	presets.s5_2 = {
 		label: "씬 5_2",
 		make: () => base({
 			name: "S5-2",
@@ -14035,7 +14035,7 @@ RL.presets = {};
 			]) })]
 		})
 	};
-	RL.presets["rg_bass"] = {
+	presets.rg_bass = {
 		label: "리듬게임 인게임 — 베이스 심벌",
 		make: () => base({
 			name: "RG_베이스_리듬게임",
@@ -14137,7 +14137,7 @@ RL.presets = {};
 			]
 		})
 	};
-	RL.presets["fl_rise"] = {
+	presets.fl_rise = {
 		label: "오브젝트 유영 — 악기 상승·팡",
 		make: () => base({
 			name: "FL_악기유영",
@@ -14200,7 +14200,7 @@ RL.presets = {};
 			]
 		})
 	};
-	RL.presets["s3_3"] = {
+	presets.s3_3 = {
 		label: "씬 3_3",
 		make: () => base({
 			name: "S3-3",
@@ -16495,7 +16495,7 @@ var App = class {
 		} catch (e) {
 			p = null;
 		}
-		this.loadProject(p || RL.presets.s1_2.make(), !p);
+		this.loadProject(p || presets.s1_2.make(), !p);
 		this.historyReset();
 		new ResizeObserver(() => {
 			this.layoutStage();
@@ -16521,7 +16521,7 @@ var App = class {
 		o.impact = Object.assign(defaultProject().impact, (p || {}).impact || {});
 		o.markers = (o.markers || []).filter((m) => isFinite(m.t)).sort((a, b) => a.t - b.t);
 		o.speedKeys = o.speedKeys || [];
-		o.layers = (o.layers || []).filter((l) => RL.modules[l.type]).map((l) => {
+		o.layers = (o.layers || []).filter((l) => modules[l.type]).map((l) => {
 			const fresh = newLayer(l.type);
 			const out = Object.assign(fresh, l);
 			out.params = Object.assign(newLayer(l.type).params, l.params || {});
@@ -16576,13 +16576,13 @@ var App = class {
 			value: "",
 			text: "— 씬 프리셋 불러오기 —"
 		}));
-		for (const k in RL.presets) ps.append(h("option", {
+		for (const k in presets) ps.append(h("option", {
 			value: k,
-			text: RL.presets[k].label
+			text: presets[k].label
 		}));
 		const add = $("#addBtns");
-		for (const k in RL.modules) {
-			const M = RL.modules[k];
+		for (const k in modules) {
+			const M = modules[k];
 			add.append(h("button", {
 				title: M.label + " 레이어 추가",
 				onclick: () => this.addLayer(k)
@@ -16620,7 +16620,7 @@ var App = class {
 			e.target.value = "";
 			if (!k) return;
 			if (P().layers.length && !confirm("현재 작업을 프리셋으로 바꿀까요? 저장하지 않은 변경은 사라집니다.")) return;
-			this.loadProject(RL.presets[k].make(), true);
+			this.loadProject(presets[k].make(), true);
 		});
 		$("#size").addEventListener("change", (e) => {
 			const v = e.target.value;
@@ -16967,7 +16967,7 @@ var App = class {
 		const P = this.project;
 		if (!P.layers.length) ul.append(h("li", { class: "empty" }, "위 버튼으로 레이어를 추가하세요"));
 		for (const L of P.layers.slice().reverse()) {
-			const M = RL.modules[L.type];
+			const M = modules[L.type];
 			const li = h("li", {
 				class: (L.id === this.sel ? "sel " : "") + (L.enabled ? "" : "off"),
 				onclick: () => {
@@ -17027,7 +17027,7 @@ var App = class {
 			box.append(h("p", { class: "empty" }, "레이어를 선택하세요."));
 			return;
 		}
-		const M = RL.modules[L.type];
+		const M = modules[L.type];
 		box.append(h("div", { class: "head" }, h("span", {
 			class: "type",
 			text: M.icon + " " + M.label
@@ -17799,7 +17799,7 @@ var App = class {
 		const L = this.selLayer();
 		if (L) {
 			for (const k in L.keys) if (L.keys[k] && L.keys[k].length) {
-				const sc = RL.modules[L.type].schema.find((x) => x.id === k) || layerCommonSchema.find((x) => "_" + x.id === k);
+				const sc = modules[L.type].schema.find((x) => x.id === k) || layerCommonSchema.find((x) => "_" + x.id === k);
 				rows.push({
 					name: sc ? sc.label : k,
 					ks: L.keys[k],
@@ -18044,7 +18044,7 @@ Object.assign(App.prototype, {
 		}
 		const at = this.sel ? P.layers.findIndex((l) => l.id === this.sel) + 1 : P.layers.length;
 		const add = clip.layers.map((src) => {
-			const fresh = RL.modules[src.type] ? newLayer(src.type) : null;
+			const fresh = modules[src.type] ? newLayer(src.type) : null;
 			if (!fresh) return null;
 			const c = Object.assign(fresh, JSON.parse(JSON.stringify(src)));
 			c.params = Object.assign(newLayer(src.type).params, c.params || {});
@@ -18181,11 +18181,11 @@ Object.assign(App.prototype, {
 				if (b) b.click();
 			}
 		});
-		const presetItems = Object.keys(RL.presets).map((k) => ({
-			label: RL.presets[k].label,
+		const presetItems = Object.keys(presets).map((k) => ({
+			label: presets[k].label,
 			fn: () => {
 				if (P().layers.length && !confirm("현재 작업을 이 프리셋으로 바꿀까요? (Ctrl+Z로 되돌릴 수 있습니다)")) return;
-				A.loadProject(RL.presets[k].make(), true);
+				A.loadProject(presets[k].make(), true);
 			}
 		}));
 		const scaleItems = [
@@ -18200,8 +18200,8 @@ Object.assign(App.prototype, {
 				$("#scale").dispatchEvent(new Event("change"));
 			}
 		}));
-		const addItems = Object.keys(RL.modules).map((k) => ({
-			label: RL.modules[k].icon + "  " + RL.modules[k].label + " 추가",
+		const addItems = Object.keys(modules).map((k) => ({
+			label: modules[k].icon + "  " + modules[k].label + " 추가",
 			fn: () => A.addLayer(k)
 		}));
 		const easeItems = [
@@ -19114,8 +19114,8 @@ Object.assign(App.prototype, {
 							},
 							"-",
 							...s.project.layers.slice().reverse().map((L) => ({
-								label: (RL.modules[L.type] ? RL.modules[L.type].icon + "  " : "") + L.name,
-								dis: !RL.modules[L.type],
+								label: (modules[L.type] ? modules[L.type].icon + "  " : "") + L.name,
+								dis: !modules[L.type],
 								fn: () => this.pasteLayers({
 									layers: [L],
 									assets: this.layerAssets([L], s.project.assets),

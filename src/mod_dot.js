@@ -1,9 +1,10 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as registry from './core/registry.js';
 // DOT — 스프링 격자 도트 (이웃 결합으로 파동이 실제로 전파). 도트 융기·기둥 돌출
 
-RL.modules.dot = {
+registry.modules.dot = {
   label: '도트', icon: '⠿', blend: 'over',
   schema: [
     { id: 'rows', label: '줄 수', type: 'range', min: 4, max: 120, step: 1, default: 28, group: '형태' },

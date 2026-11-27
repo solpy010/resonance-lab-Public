@@ -3,10 +3,11 @@ import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as batches from './batch.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // LINE — 리듬선(가로 요동) / 가로지르기(시작 면→끝 면, 속도) / 낙하 스크래치. 네온 관 모델 렌더.
 // 선의 현재 위치·속도를 engine.colliders에 공개 → 기하 물리 도형이 부딪혀 튕긴다.
 
-RL.modules.line = {
+registry.modules.line = {
   label: '라인', icon: '∿', blend: 'add',
   schema: [
     { id: 'mode', rerender: true, label: '방식', type: 'select', options: [['eq', '리듬선(진폭·진동)'], ['streak', '가로지르기(속도)'], ['rain', '선운동 스크래치(가로·세로)']], default: 'eq', group: '형태' },

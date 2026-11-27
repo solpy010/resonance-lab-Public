@@ -2,10 +2,11 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // WAVE — 2D 파동 방정식. 경계는 '흡수'(열린 공간)라 벽 반사 없이 퍼져 사라진다.
 // 표현: 등고선 링 / 소프트 글로우 링 / 간섭 광망 / 마루 빛 / 입체 음영.
 
-RL.modules.wave = {
+registry.modules.wave = {
   label: '파장', icon: '◎', blend: 'add',
   schema: [
     { id: 'quality', when: (P) => P.mode !== 'glow', label: '시뮬 해상도(세로 칸)', type: 'range', min: 120, max: 520, step: 10, default: 300, group: '형태' },

@@ -1,9 +1,9 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // Scene presets — 1110 연출 체크리스트 기준. 장면은 연출안에서 출발, 색은 씬 고유 팔레트
 
-RL.presets = {};
 (function () {
   const L = (type, o, params, react, keys) => {
     const l = eng.newLayer(type, o);
@@ -17,9 +17,9 @@ RL.presets = {};
   const grid = (bpm, from, to, s) => { const out = []; for (let t = from; t < to; t += 60 / bpm) out.push({ t: +t.toFixed(4), s: s || 1 }); return out; };
   const base = (o) => Object.assign(eng.defaultProject(), o);
 
-  RL.presets['empty'] = { label: '빈 프로젝트', make: () => base({ name: '새 프로젝트' }) };
+  registry.presets['empty'] = { label: '빈 프로젝트', make: () => base({ name: '새 프로젝트' }) };
 
-  RL.presets['s0_1'] = { label: '씬 0_1', make: () => base({
+  registry.presets['s0_1'] = { label: '씬 0_1', make: () => base({
     name: 'S0-1', duration: 20, bg: { mode: 'solid', color: '#06080b', chroma: '#00b140' },
     post: { glow: 0.2, glowThreshold: 0.6, glowRadius: 0.6, halation: 0, grain: 0.07, chroma: 0, exposure: 1, contrast: 1.05, saturation: 0.2 },
     layers: [
@@ -28,7 +28,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s1_1'] = { label: '씬 1_1', make: () => base({
+  registry.presets['s1_1'] = { label: '씬 1_1', make: () => base({
     name: 'S1-1', duration: 12, bg: { mode: 'solid', color: '#020409', chroma: '#00b140' },
     post: { glow: 0.3, glowThreshold: 0.6, glowRadius: 0.7, halation: 0.06, grain: 0.03, chroma: 0, exposure: 1, contrast: 1, saturation: 1 },
     layers: [
@@ -38,7 +38,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s1_2'] = { label: '씬 1_2', make: () => base({
+  registry.presets['s1_2'] = { label: '씬 1_2', make: () => base({
     name: 'S1-2', duration: 12, bg: { mode: 'solid', color: '#03060d', chroma: '#00b140' },
     post: { glow: 0.4, glowThreshold: 0.45, glowRadius: 0.55, halation: 0.05, grain: 0.03, chroma: 0.15, exposure: 1, contrast: 1, saturation: 1 },
     markers: [{ t: 0.4, s: 1 }, { t: 2.2, s: 1.2 }, { t: 6.0, s: 1 }, { t: 6.9, s: 0.5 }, { t: 7.3, s: 0.5 }, { t: 7.7, s: 0.6 }, { t: 8.5, s: 0.5 }, { t: 8.9, s: 0.5 }, { t: 9.3, s: 0.6 }],
@@ -50,7 +50,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s1_3'] = { label: '씬 1_3', make: () => base({
+  registry.presets['s1_3'] = { label: '씬 1_3', make: () => base({
     name: 'S1-3', duration: 12, bg: { mode: 'solid', color: '#040810', chroma: '#00b140' },
     post: { glow: 0.3, glowThreshold: 0.55, glowRadius: 0.5, halation: 0, grain: 0.03, chroma: 0, exposure: 1, contrast: 1, saturation: 1 },
     markers: grid(120, 1, 12, 1),
@@ -61,7 +61,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s1_4'] = { label: '씬 1_4', make: () => base({
+  registry.presets['s1_4'] = { label: '씬 1_4', make: () => base({
     name: 'S1-4', duration: 12, bg: { mode: 'solid', color: '#05060c', chroma: '#00b140' },
     post: { glow: 0.25, glowThreshold: 0.6, glowRadius: 0.5, halation: 0.05, grain: 0.03, chroma: 0.1, exposure: 1, contrast: 1, saturation: 1 },
     markers: grid(96, 0.5, 12, 1),
@@ -71,7 +71,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s1_5'] = { label: '씬 1_5', make: () => base({
+  registry.presets['s1_5'] = { label: '씬 1_5', make: () => base({
     name: 'S1-5', duration: 14, bg: { mode: 'solid', color: '#05060d', chroma: '#00b140' },
     post: { glow: 0.25, glowThreshold: 0.7, glowRadius: 0.6, halation: 0.04, grain: 0.03, chroma: 0.05, exposure: 1, contrast: 1, saturation: 1 },
     markers: grid(100, 6, 14, 0.6),
@@ -84,7 +84,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s1_6'] = { label: '씬 1_6', make: () => base({
+  registry.presets['s1_6'] = { label: '씬 1_6', make: () => base({
     name: 'S1-6', duration: 16, bg: { mode: 'solid', color: '#040408', chroma: '#00b140' },
     post: { glow: 0.35, glowThreshold: 0.55, glowRadius: 0.55, halation: 0.06, grain: 0.035, chroma: 0.12, exposure: 1, contrast: 1.05, saturation: 1.05 },
     markers: grid(128, 0.5, 16, 1),
@@ -100,7 +100,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['fx_hit'] = { label: '씬 2_2', make: () => base({
+  registry.presets['fx_hit'] = { label: '씬 2_2', make: () => base({
     name: 'S2-2', duration: 8, bg: { mode: 'transparent', color: '#05070c', chroma: '#00b140' },
     post: { glow: 0.4, glowThreshold: 0.5, glowRadius: 0.5, halation: 0, grain: 0, chroma: 0, exposure: 1, contrast: 1, saturation: 1 },
     markers: grid(120, 0.5, 8, 1),
@@ -110,7 +110,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s4_2'] = { label: '씬 4_2', make: () => base({
+  registry.presets['s4_2'] = { label: '씬 4_2', make: () => base({
     name: 'S4-2', duration: 15, bg: { mode: 'solid', color: '#0a0507', chroma: '#00b140' },
     post: { glow: 0.35, glowThreshold: 0.55, glowRadius: 0.5, halation: 0.12, grain: 0.04, chroma: 0.1, exposure: 1, contrast: 1.05, saturation: 1.05 },
     speed: 1, speedKeys: K([0, 0.45], [8, 1.3, 'inOut'], [14, 2.4, 'expoIn']),
@@ -120,7 +120,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s5_2'] = { label: '씬 5_2', make: () => base({
+  registry.presets['s5_2'] = { label: '씬 5_2', make: () => base({
     name: 'S5-2', duration: 14, bg: { mode: 'solid', color: '#03040a', chroma: '#00b140' },
     post: { glow: 0.45, glowThreshold: 0.45, glowRadius: 0.6, halation: 0.06, grain: 0.03, chroma: 0, exposure: 1, contrast: 1, saturation: 1 },
     layers: [
@@ -131,7 +131,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['rg_bass'] = { label: '리듬게임 인게임 — 베이스 심벌', make: () => base({
+  registry.presets['rg_bass'] = { label: '리듬게임 인게임 — 베이스 심벌', make: () => base({
     name: 'RG_베이스_리듬게임', duration: 16, wrap: true, bg: { mode: 'solid', color: '#04030a', chroma: '#00b140' },
     post: { glow: 0.55, glowThreshold: 0.45, glowRadius: 0.55, halation: 0.08, grain: 0.03, chroma: 0.12, exposure: 1, contrast: 1.05, saturation: 1.1 },
     markers: grid(112, 2.0, 15.5),
@@ -143,7 +143,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['fl_rise'] = { label: '오브젝트 유영 — 악기 상승·팡', make: () => base({
+  registry.presets['fl_rise'] = { label: '오브젝트 유영 — 악기 상승·팡', make: () => base({
     name: 'FL_악기유영', duration: 16, wrap: true, bg: { mode: 'solid', color: '#050812', chroma: '#00b140' },
     post: { glow: 0.45, glowThreshold: 0.5, glowRadius: 0.5, halation: 0.05, grain: 0.03, chroma: 0.06, exposure: 1, contrast: 1, saturation: 1.05 },
     markers: grid(96, 3.0, 15.5),
@@ -154,7 +154,7 @@ RL.presets = {};
     ],
   }) };
 
-  RL.presets['s3_3'] = { label: '씬 3_3', make: () => base({
+  registry.presets['s3_3'] = { label: '씬 3_3', make: () => base({
     name: 'S3-3', duration: 40, wrap: true, bg: { mode: 'solid', color: '#030308', chroma: '#00b140' },
     post: { glow: 0.32, glowThreshold: 0.62, glowRadius: 0.5, halation: 0.03, grain: 0.025, chroma: 0.04, exposure: 0.95, contrast: 1.05, saturation: 1.1 },
     markers: grid(128, 0, 39.9).filter((m, i) => i % 4 === 0),

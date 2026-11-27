@@ -3,10 +3,11 @@ import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as fxlib from './fx.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // FLOATERS — 오브젝트 유영: 화면 하단 바깥에서 태어나 부력·중력·저항을 받아 위로 떠오르고, 마커 타이밍에 '팡' 터지며 사라짐.
 // 결정론: 레이어 rng + 고정 dt → 같은 프레임은 언제나 같은 결과.
 
-RL.modules.floaters = {
+registry.modules.floaters = {
   label: '오브젝트 유영', icon: '◎', blend: 'over',
   schema: [
     { id: 'useDefault', label: '기본 악기 아이콘 사용', type: 'bool', default: true, group: '오브젝트', hint: '징·북·장구·꽹과리·기타 라인아트. 끄면 첨부한 이미지/영상만 사용' },

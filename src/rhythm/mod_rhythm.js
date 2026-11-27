@@ -3,6 +3,7 @@ import { FXN, FX_GLSL } from './fx_glsl.js';
 import * as webgl from '../gl.js';
 import * as fxlib from '../fx.js';
 import * as eng from '../engine.js';
+import * as registry from '../core/registry.js';
 // RHYTHM — 리듬게임 인게임: 마커 시점에 노트가 심벌에 '닿고', 그때 이펙트가 터지며, 누적될수록 심벌이 화려해짐.
 // 전부 시간의 함수(무상태) → 어느 프레임을 다시 렌더해도 동일. 노트 도착/이펙트 시점은 각각 싱크 슬라이더로 조정.
 // 셰이더 이펙트 14종(6 카테고리) + 다중참여 이펙트(참여 인원·빈도·통일↔무분별·크기 편차·퍼짐 반경·시드).
@@ -42,7 +43,7 @@ function hueRot(c, deg) {
   return [y + 0.956 * i2 + 0.621 * q2, y - 0.272 * i2 - 0.647 * q2, y - 1.106 * i2 + 1.703 * q2].map(v => Math.max(0, Math.min(1, v)));
 }
 
-RL.modules.rhythm = {
+registry.modules.rhythm = {
   label: '리듬게임', icon: '♪', blend: 'over',
   schema: [
     { id: 'showSymbol', label: '심벌 표시', type: 'bool', default: true, group: '표시' },

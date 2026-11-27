@@ -2,6 +2,7 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as robotMesh from './robot_mesh.js';
+import * as registry from './core/registry.js';
 // ROBOT — RB20-1900ES 로봇팔 군무 (3D 메시, 6축 관절, 구부정 기본 자세, 스타일·템포·다양성·재질·색 흐름)
 // 뿌리(베이스)는 바닥에 고정, 모든 움직임은 관절 회전으로만. 위로 곧게 뻗는 자세는 관절 제한으로 막는다.
 
@@ -130,7 +131,7 @@ import * as robotMesh from './robot_mesh.js';
     { id: 'hitDecay', label: '타격 잔향(초)', type: 'range', min: 0.05, max: 2, step: 0.01, default: 0.45, group: '반응' },
   ];
 
-  RL.modules.robot = {
+  registry.modules.robot = {
     label: '로봇팔 군무', icon: '⊾', blend: 'over', schema,
     styles: STYLES,
     create(engine, L) {

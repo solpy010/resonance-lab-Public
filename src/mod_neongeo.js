@@ -3,6 +3,7 @@ import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as batches from './batch.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // NEONGEO — 네온 입체 기하: 입방체·다면체·기하무늬가 제자리에서 회전. 외곽선만 / 보이는 모서리 / 모든 모서리 / 면+모서리 / 솔리드
 
 (function () {
@@ -66,7 +67,7 @@ import * as eng from './engine.js';
   }
 
   const shapeOpts = Object.keys(SHAPES).map(k => [k, SHAPES[k].label]);
-  RL.modules.neongeo = {
+  registry.modules.neongeo = {
     label: '네온 입체 기하', icon: '◇', blend: 'add',
     schema: [
       { id: 'shape', label: '도형', type: 'select', default: 'cube', group: '형태', options: [['mixSolid', '입체 섞기 (순서대로)'], ['mixPattern', '무늬 섞기 (순서대로)'], ['mixAll', '모두 섞기'], ...shapeOpts] },

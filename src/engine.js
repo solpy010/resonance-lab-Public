@@ -3,9 +3,9 @@ import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as batches from './batch.js';
 import * as icons from './builtins.js';
+import * as registry from './core/registry.js';
 // RESONANCE LAB — engine: deterministic frame clock, layer graph, 2층 post, background/alpha output
 
-RL.modules = {};
 export const FACE_NAMES = 'ABCDEFGHIJKL'.split('');
 
 export const layerCommonSchema = [
@@ -41,7 +41,7 @@ export const defaultProject = () => ({
 });
 
 export const newLayer = function (type, overrides) {
-  const M = RL.modules[type];
+  const M = registry.modules[type];
   const params = {};
   for (const s of M.schema) params[s.id] = Array.isArray(s.default) ? s.default.slice() : s.default;
   return Object.assign({
@@ -212,7 +212,7 @@ export const Engine = class {
     for (const def of want) {
       let L = this.layers.find(x => x.id === def.id && x.type === def.type);
       if (!L) {
-        const M = RL.modules[def.type];
+        const M = registry.modules[def.type];
         if (!M) continue;
         L = { id: def.id, type: def.type, def, target: webgl.target(this.gl, this.rw, this.rh) };
         L.inst = M.create(this, L);
@@ -278,7 +278,7 @@ export const Engine = class {
   }
 
   evalLayer(L, t) {
-    const def = L.def, M = RL.modules[def.type];
+    const def = L.def, M = registry.modules[def.type];
     const cur = {};
     for (const s of M.schema) {
       const v = def.params[s.id];

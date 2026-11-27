@@ -2,9 +2,10 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // FLUID — Stable Fluids (Stam 1999 계열) 직접 구현. 염료 밀도 = 알파 → 배경 위에 '물감'처럼 얹힘
 
-RL.modules.fluid = {
+registry.modules.fluid = {
   label: '유체', icon: '≈', blend: 'over',
   schema: [
     { id: 'quality', label: '속도장 해상도(세로)', type: 'range', min: 48, max: 256, step: 8, default: 112, group: '형태' },

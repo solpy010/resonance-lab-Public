@@ -2,9 +2,10 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import * as registry from './core/registry.js';
 // BEAM — 가상 조명 빔 + 볼류메트릭 안개 산란 (빔 하강·부채꼴 확산·점멸)
 
-RL.modules.beam = {
+registry.modules.beam = {
   label: '빛·빔', icon: '⟟', blend: 'add',
   schema: [
     { id: 'sources', label: '광원 면 (예: A,C,E)', type: 'text', default: 'A,C,E', group: '형태' },
