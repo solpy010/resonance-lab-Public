@@ -15,8 +15,11 @@ const GOLD = path.join(ROOT, 'tests/golden.json');
 const UPDATE = process.argv.includes('--update');
 // 기본: 해시가 다르면 실패 (같은 크롬 + SwiftShader 면 비트 단위로 같음).
 // RLAB_LOOSE=1: 크롬 버전이 달라 생기는 미세 차(평균 픽셀 차 TOL 이하)는 통과
+// RLAB_GOLDEN=report: 기준 프레임과 다른 것은 실패로 보지 않고 차이만 보고 (크롬 버전이 다른 자동 검사 서버용).
+//   이때도 결정론(같은 조건 두 번 렌더가 같은지)·하얀 화면·페이지 오류는 실패. 유체처럼 누적되는 시뮬레이션은
+//   크롬·SwiftShader 버전이 바뀌면 작은 부동소수 차이가 시간이 갈수록 커지므로 서버마다 기준을 맞출 수 없다.
 // RLAB_DIFF_DIR=<폴더>: 실패한 케이스마다 [기준 | 지금] 축소본을 PNG 로 저장 (자동 검사에서 원인 확인용)
-const LOOSE = !!process.env.RLAB_LOOSE, TOL = 0.5, DIFF_DIR = process.env.RLAB_DIFF_DIR || '';
+const LOOSE = !!process.env.RLAB_LOOSE, REPORT = process.env.RLAB_GOLDEN === 'report', TOL = 0.5, DIFF_DIR = process.env.RLAB_DIFF_DIR || '';
 // 의존성 없는 PNG 저장 (RGBA 8bit)
 function writePng(file, w, h, rgba) {
   const crcT = new Int32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c; });
@@ -102,7 +105,7 @@ async function main() {
 
   const gold = fs.existsSync(GOLD) ? JSON.parse(fs.readFileSync(GOLD, 'utf8')) : {};
   const next = {};
-  let fail = 0, warn = 0;
+  let fail = 0, warn = 0, diffs = 0;
   const diff = (a, b) => { const x = Buffer.from(a, 'base64'), y = Buffer.from(b, 'base64'); if (x.length !== y.length) return 255; let s = 0; for (let i = 0; i < x.length; i++) s += Math.abs(x[i] - y[i]); return s / x.length; };
 
   for (const [k, t] of cases) {
@@ -114,10 +117,11 @@ async function main() {
       if (gold[id].hash !== a.hash) {
         const d = diff(gold[id].thumb, a.thumb);
         if (LOOSE && d <= TOL) { status = 'warn'; note = `미세 차 ${d.toFixed(3)} (느슨한 모드 통과)`; }
+        else if (REPORT) { status = 'diff'; note = `기준과 다름 (평균 픽셀 차 ${d.toFixed(3)}) — 보고만`; saveDiff(id, gold[id], a); }
         else { status = 'FAIL'; note = `기준과 다름 (평균 픽셀 차 ${d.toFixed(3)})`; }
       }
     } else if (!UPDATE) { status = 'new'; note = '기준 없음'; }
-    if (status === 'FAIL') { fail++; saveDiff(id, gold[id], a); } if (status === 'warn') warn++;
+    if (status === 'FAIL') { fail++; saveDiff(id, gold[id], a); } if (status === 'warn') warn++; if (status === 'diff') diffs++;
     next[id] = a;
     const tb = Buffer.from(a.thumb, 'base64'); let lum = 0; for (let i = 0; i < tb.length; i += 4) lum += tb[i] + tb[i + 1] + tb[i + 2];
     lum /= tb.length / 4 * 3;
@@ -127,7 +131,7 @@ async function main() {
   await browser.close();
   if (errors.length) { console.log('페이지 오류:', errors.slice(0, 5)); fail++; }
   if (UPDATE) { fs.writeFileSync(GOLD, JSON.stringify(next, null, 0)); console.log(`기준 프레임 ${Object.keys(next).length}개 저장 → tests/golden.json`); return; }
-  console.log(`\n${cases.length}개 중 실패 ${fail}${LOOSE ? `, 미세 차 통과 ${warn}` : ''}`);
+  console.log(`\n${cases.length}개 중 실패 ${fail}${LOOSE ? `, 미세 차 통과 ${warn}` : ''}${REPORT ? `, 기준과 다름(보고) ${diffs}` : ''}`);
   process.exit(fail ? 1 : 0);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

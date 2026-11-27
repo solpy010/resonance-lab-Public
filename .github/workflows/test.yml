@@ -1,5 +1,6 @@
 # 커밋·풀 리퀘스트마다 검사: 빌드 → 린트 → 타입 → 스키마 → 데스크톱 규칙 → 화면 동작 → 데스크톱 실행 → 회귀
-# 회귀 검사는 크롬 버전 차이로 생기는 미세 차를 허용(RLAB_LOOSE=1). 엄격한 기준 관리는 로컬에서 `npm test`.
+# 회귀 검사: 서버 크롬은 버전이 계속 바뀌므로 결정론·하얀 화면·페이지 오류만 실패로 보고, 기준 프레임과의 차이는 보고만 한다
+# (RLAB_GOLDEN=report, 차이 이미지는 실행 결과의 regress-diff). 기준 프레임 일치는 로컬 `npm test`에서 엄격하게.
 name: 검사
 on:
   push:
@@ -16,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -44,11 +45,11 @@ jobs:
         run: |
           npm i --no-save --no-audit --no-fund electron@33.2.1
           ELECTRON_PATH="$PWD/node_modules/electron/dist/electron" FFMPEG_PATH="$(which ffmpeg)" xvfb-run -a node tests/desktop_e2e.mjs
-      - name: 회귀 검사 (45장)
-        run: RLAB_LOOSE=1 RLAB_DIFF_DIR=regress-diff node tests/regress.mjs
-      - name: 회귀 차이 이미지 올리기 (실패 시)
-        if: failure()
-        uses: actions/upload-artifact@v4
+      - name: 회귀 검사 (45장 — 결정론·렌더 이상, 기준 차이는 보고)
+        run: RLAB_LOOSE=1 RLAB_GOLDEN=report RLAB_DIFF_DIR=regress-diff node tests/regress.mjs
+      - name: 회귀 차이 이미지 올리기
+        if: always()
+        uses: actions/upload-artifact@v5
         with:
           name: regress-diff
           path: regress-diff

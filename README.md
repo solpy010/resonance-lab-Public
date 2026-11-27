@@ -84,7 +84,9 @@ npm run test:update    # 기준 프레임 다시 저장 — 의도한 화면 변
 ### 자동 검사·릴리스 (GitHub Actions)
 
 - **검사** (`.github/workflows/test.yml`): main 에 올릴 때마다 빌드 → 빌드 결과 커밋 누락 확인 → 린트 → 타입 → 스키마 → 데스크톱 규칙 → 화면 동작 →
-  데스크톱 실행(Electron) → 회귀(미세 차 허용). 회귀가 실패하면 차이 이미지가 실행 결과의 `regress-diff`에 올라갑니다.
+  데스크톱 실행(Electron) → 회귀. 서버의 크롬 버전은 계속 바뀌어 유체처럼 누적되는 시뮬레이션은 기준 프레임과 조금씩 달라지므로,
+  서버에서는 결정론·하얀 화면·페이지 오류만 실패로 보고 기준과의 차이는 보고만 합니다(`RLAB_GOLDEN=report`, 차이 이미지는 실행 결과의 `regress-diff`).
+  기준 프레임 일치는 로컬 `npm test`에서 엄격하게 확인합니다.
 - **릴리스** (`.github/workflows/release.yml`): 버전 태그를 올리면 Windows 서버에서 검사 → FFmpeg(LGPL 빌드) 받기 → 공개판 포터블 exe 빌드 →
   Release 생성·업로드(설명은 CHANGELOG 의 그 버전 항목, SHA256 포함). 순서:
   1. `VERSION`, `package.json`, `desktop/package.json` 의 버전을 올리고 `CHANGELOG.md` 에 `## v<버전> — 날짜` 항목을 씁니다.
