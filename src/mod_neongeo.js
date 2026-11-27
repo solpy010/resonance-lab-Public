@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // NEONGEO — 네온 입체 기하: 입방체·다면체·기하무늬가 제자리에서 회전. 외곽선만 / 보이는 모서리 / 모든 모서리 / 면+모서리 / 솔리드
 
 (function () {
@@ -118,7 +119,7 @@ import { RL } from './core/rl.js';
         void main(){ vc = c; gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }`;
       const tfs = `#version 300 es
         precision highp float; in vec4 vc; out vec4 frag; void main(){ frag = vc; }`;
-      const tprog = RL.program(gl, tfs, tvs);
+      const tprog = webgl.program(gl, tfs, tvs);
       const tvao = gl.createVertexArray(); gl.bindVertexArray(tvao);
       const tb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, tb); gl.bufferData(gl.ARRAY_BUFFER, tri.byteLength, gl.DYNAMIC_DRAW);
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0);
@@ -141,17 +142,17 @@ import { RL } from './core/rl.js';
           this.time += dt; this.beat += dt * P.bpm / 60;
           const n = Math.round(P.count);
           while (this.ang.length < 48) this.ang.push(0);
-          const r = RL.rng(RL.hashSeed(engine.project.seed, L.id, 'spd'));
+          const r = webgl.rng(webgl.hashSeed(engine.project.seed, L.id, 'spd'));
           for (let i = 0; i < 48; i++) { const v = 1 + (r() * 2 - 1) * P.rotVar; const dir = P.alternate && i % 2 ? -1 : 1; this.ang[i] += dt * P.rotSpeed * v * dir; }
           for (const e of evs) this.hits.push({ t: this.time, u: e.u, s: e.s });
           this.hits = this.hits.filter(h => this.time - h.t < P.decay * 6).slice(-48);
           this.n = n;
         },
         render(target, P) {
-          RL.clear(gl, target);
+          webgl.clear(gl, target);
           const proj = engine.project, A = engine.aspect, docW = engine.docW, docH = engine.docH, fc = Math.max(1, proj.faces | 0);
-          const n = Math.round(P.count), r = RL.rng(RL.hashSeed(proj.seed, L.id, 'geo'));
-          const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(RL.hexToRgb);
+          const n = Math.round(P.count), r = webgl.rng(webgl.hashSeed(proj.seed, L.id, 'geo'));
+          const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(webgl.hexToRgb);
           const samp = (x) => { const k = cols.length; x = ((x % 1) + 1) % 1 * k; const i = Math.floor(x), f = x - i; const a = cols[i % k], b = cols[(i + 1) % k]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]; };
           const listF = RL.parseFaces(P.list, fc);
           const sg = engine.segs, sb = engine.sprites; sg.begin(); sb.begin(); nt = 0;
@@ -190,7 +191,7 @@ import { RL } from './core/rl.js';
             let col;
             if (P.colorMode === 'single') col = cols[0];
             else if (P.colorMode === 'flow' || P.colorMode === 'perEdge') col = samp(it.u - this.time * P.flowSpeed * 0.25);
-            else if (P.colorMode === 'random') col = samp(i * 0.31 + RL.noise.n2(this.time * Math.abs(P.flowSpeed) + i * 3.7, i) * 1.5);
+            else if (P.colorMode === 'random') col = samp(i * 0.31 + webgl.noise.n2(this.time * Math.abs(P.flowSpeed) + i * 3.7, i) * 1.5);
             else col = cols[i % cols.length];
             const layers = [[1, 1]]; if (P.inner > 0.001) layers.push([0.5, -1]);
             const xs = [it.u]; if (proj.wrap) { const rad = S * 1.2 / docW; if (it.u < rad) xs.push(it.u + 1); if (it.u > 1 - rad) xs.push(it.u - 1); }
@@ -240,7 +241,7 @@ import { RL } from './core/rl.js';
             }
           }
           if (nt) {
-            RL.bindTarget(gl, target); gl.useProgram(tprog.p); RL.setBlend(gl, 'over');
+            webgl.bindTarget(gl, target); gl.useProgram(tprog.p); webgl.setBlend(gl, 'over');
             gl.bindVertexArray(tvao); gl.bindBuffer(gl.ARRAY_BUFFER, tb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, tri, 0, nt * 6);
             gl.drawArrays(gl.TRIANGLES, 0, nt); gl.bindVertexArray(null);
           }

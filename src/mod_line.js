@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // LINE — 리듬선(가로 요동) / 가로지르기(시작 면→끝 면, 속도) / 낙하 스크래치. 네온 관 모델 렌더.
 // 선의 현재 위치·속도를 engine.colliders에 공개 → 기하 물리 도형이 부딪혀 튕긴다.
 
@@ -122,7 +123,7 @@ RL.modules.line = {
         }
         if (P.mode === 'streak') {
           const ym = (P.yMin + P.yMax) / 2, yr = Math.max(0, P.yMax - P.yMin);
-          this.central = { y: ym + RL.noise.n2(this.time * 0.25, 11.3) * yr * 0.4, v: P.streakSpeed * (1 + RL.noise.n2(this.time * 0.3, 5.1) * 0.3), ph: this.time * 2 };
+          this.central = { y: ym + webgl.noise.n2(this.time * 0.25, 11.3) * yr * 0.4, v: P.streakSpeed * (1 + webgl.noise.n2(this.time * 0.3, 5.1) * 0.3), ph: this.time * 2 };
           this.sacc += P.streakRate * dt; let k = Math.floor(this.sacc); this.sacc -= k;
           while (k-- > 0) this.spawnStreak(P);
           const fadeTime = 0.05 + (P.finish ?? 0.5) * 0.75;
@@ -176,8 +177,8 @@ RL.modules.line = {
             const spread = (li - mid) * P.spacing * (1 - sync * 0.85) * (1 + P.fan * 3 * w.b);
             if (P.noise > 0) {
               let nz;
-              if (WR) { const th = u * Math.PI * 2, R1 = A * 1.5 / (Math.PI * 2); nz = RL.noise.n3(Math.cos(th) * R1 + this.seeds[li % 80], Math.sin(th) * R1, this.nt * 0.5 + li * 0.3); }
-              else nz = RL.noise.n2(u * A * 1.5 + this.seeds[li % 80], this.nt * 0.5 + li * 0.3);
+              if (WR) { const th = u * Math.PI * 2, R1 = A * 1.5 / (Math.PI * 2); nz = webgl.noise.n3(Math.cos(th) * R1 + this.seeds[li % 80], Math.sin(th) * R1, this.nt * 0.5 + li * 0.3); }
+              else nz = webgl.noise.n2(u * A * 1.5 + this.seeds[li % 80], this.nt * 0.5 + li * 0.3);
               y += nz * P.noise * 0.35 * Math.max(P.amp, 0.05);
             }
             for (const p of this.pulses) {
@@ -220,8 +221,8 @@ RL.modules.line = {
               if (P.noise > 0) {
                 let nz;
                 if (WR) { const th = u * Math.PI * 2, R1 = A * 3 / (Math.PI * 2), R2 = A * 9 / (Math.PI * 2);
-                  nz = RL.noise.n3(Math.cos(th) * R1 + sd, Math.sin(th) * R1, this.nt + li) + 0.5 * RL.noise.n3(Math.cos(th) * R2 + sd, Math.sin(th) * R2, this.nt * 1.7 + li); }
-                else nz = RL.noise.n2(u * A * 3 + sd, this.nt + li) + 0.5 * RL.noise.n2(u * A * 9 + sd, this.nt * 1.7 + li);
+                  nz = webgl.noise.n3(Math.cos(th) * R1 + sd, Math.sin(th) * R1, this.nt + li) + 0.5 * webgl.noise.n3(Math.cos(th) * R2 + sd, Math.sin(th) * R2, this.nt * 1.7 + li); }
+                else nz = webgl.noise.n2(u * A * 3 + sd, this.nt + li) + 0.5 * webgl.noise.n2(u * A * 9 + sd, this.nt * 1.7 + li);
                 y += nz * P.noise * Math.max(P.amp, 0.05);
               }
               for (const p of this.pulses) {
@@ -281,9 +282,9 @@ RL.modules.line = {
         else engine.colliders.delete(L.id);
       },
       render(target, P) {
-        RL.clear(gl, target);
+        webgl.clear(gl, target);
         if (!L.def.enabled) return;
-        const sg = engine.segs, cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(RL.hexToRgb);
+        const sg = engine.segs, cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(webgl.hexToRgb);
         const style = RL.LINE_STYLES[P.style] ?? 0, docW = engine.docW, docH = engine.docH;
         sg.begin();
         const ramp = (f) => { const n = cols.length; if (n === 1) return cols[0]; const p = Math.min(n - 1.0001, Math.max(0, f * (n - 1))); const i = Math.floor(p), w = p - i, a = cols[i], b = cols[i + 1]; return [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w, a[2] + (b[2] - a[2]) * w]; };

@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // SURFACE — 그라데이션 흐름 면 / 세로 그라데이션 면들의 커브 댄스 (씬 1_5)
 
 RL.modules.surface = {
@@ -61,7 +62,7 @@ RL.modules.surface = {
   ],
   create(engine, L) {
     const gl = engine.gl;
-    const COMMON = RL.GLSL_NOISE + `
+    const COMMON = webgl.GLSL_NOISE + `
       uniform vec3 pal[6]; uniform float nPal, opacity, intensity, contrast, aspect, T, wrap;
       vec3 ramp(float t, float cyclic){ float n = nPal; float x = cyclic > 0.5 ? fract(t)*n : clamp(t,0.0,1.0)*(n-1.0);
         float i = floor(x), f = x - i; f = f*f*(3.0-2.0*f);
@@ -70,7 +71,7 @@ RL.modules.surface = {
         return mix(A, B, f); }
       vec3 grade(vec3 c){ return max((c - 0.5)*contrast + 0.5, 0.0) * intensity; }
     `;
-    const flow = RL.program(gl, COMMON + `
+    const flow = webgl.program(gl, COMMON + `
       uniform float angle, scale, warp, warpScale, bands, bandSoft, edgeFade, kick;
       float sm(vec2 p){ return vnoise(p) * 0.68 + vnoise(p * 2.07 + 3.1) * 0.32; }
       float smP(vec2 p, float per){ return vnoiseP(p, per) * 0.68 + vnoiseP(p * 2.0 + vec2(0.0, 3.1), per * 2.0) * 0.32; }
@@ -95,7 +96,7 @@ RL.modules.surface = {
         vec3 c = grade(ramp(t, 1.0));
         float a = opacity * smoothstep(0.0, edgeFade + 1e-4, uv.y) * smoothstep(0.0, edgeFade + 1e-4, 1.0 - uv.y);
         frag = vec4(c * a, a); }`);
-    const strips = RL.program(gl, COMMON + `
+    const strips = webgl.program(gl, COMMON + `
       uniform float n, width, spanL, spanR, bottom, top, dance, amp, freq, phaseStep, twist, wobble, depthVar, gradDir, rim, sheen, cflow;
       void main(){
         vec4 acc = vec4(0.0);
@@ -130,7 +131,7 @@ RL.modules.surface = {
         frag = acc; }`);
     // 고무줄 너울: a smooth, order-preserving horizontal displacement field — strips can never cross.
     // pixel x → undeformed x0 by fixed-point inversion of x = x0 + D(x0, y)
-    const elastic = RL.program(gl, COMMON + `
+    const elastic = webgl.program(gl, COMMON + `
       uniform float n, width, widthVar, spanL, spanR, bottom, top, depthVar, gradDir, rim, sheen, kx, drift, cflow, cscale, cspread, cfvar, crev, csvar, ncol, hold, tdepth;
       vec3 palAt(float k){ int a = int(mod(k, nPal)); vec3 A = pal[0]; for (int j = 0; j < 6; j++) if (j == a) A = pal[j]; return A; }
       uniform vec3 c1, c2;   // coefficients (amplitudes in uv.x) for vertical modes 1..3, for the sin and cos horizontal components
@@ -208,14 +209,14 @@ RL.modules.surface = {
         this.kickEnv += (tgt - this.kickEnv) * Math.min(1, dt / 0.3);
       },
       render(target, P) {
-        RL.clear(gl, target);
+        webgl.clear(gl, target);
         const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).slice(0, 6);
-        const pal = new Float32Array(18); cols.forEach((c, i) => pal.set(RL.hexToRgb(c), i * 3));
+        const pal = new Float32Array(18); cols.forEach((c, i) => pal.set(webgl.hexToRgb(c), i * 3));
         let kick = 0; for (const k of this.kicks) kick += k.s * Math.exp(-k.age / P.kickDecay);
         kick *= P.kick;
         const common = { pal, nPal: cols.length, opacity: P.opacity2, intensity: P.intensity, contrast: P.contrast, aspect: engine.aspect, wrap: engine.project.wrap ? 1 : 0 };
         if (P.mode === 'flow') {
-          RL.draw(gl, flow, target, Object.assign(common, { T: this.flowT || 0, angle: P.angle * Math.PI / 180, scale: P.scale, warp: P.warp, warpScale: P.warpScale, bands: P.bands, bandSoft: P.bandSoft, edgeFade: P.edgeFade, kick }));
+          webgl.draw(gl, flow, target, Object.assign(common, { T: this.flowT || 0, angle: P.angle * Math.PI / 180, scale: P.scale, warp: P.warp, warpScale: P.warpScale, bands: P.bands, bandSoft: P.bandSoft, edgeFade: P.edgeFade, kick }));
         } else if (P.mode === 'strips') {
           const A = engine.aspect, beat = 60 / Math.max(1, P.bpm || 120);
           const bt = this.time / beat * Math.max(0, P.danceSpeed) / 0.8;             // 춤 속도 0.8 = 원래 템포
@@ -235,14 +236,14 @@ RL.modules.surface = {
           // no-collision guarantee: |dD/dx0| <= 0.8  (order preserved, strips squeeze but never cross)
           const gmax = 2 * Math.PI * kx * mag * Math.max(sum, 1e-6);
           const k = gmax > 0.8 ? 0.8 / gmax : 1;
-          RL.draw(gl, elastic, target, Object.assign(common, {
+          webgl.draw(gl, elastic, target, Object.assign(common, {
             T: this.time, n: Math.round(P.count), width: Math.min(1, P.width), widthVar: P.widthVar ?? 0.35, spanL: P.spanL, spanR: P.spanR, bottom: P.bottom, top: P.top,
             depthVar: P.depthVar, gradDir: P.gradDir === 'v' ? 0 : P.gradDir === 'h' ? 1 : 2, rim: P.rim, sheen: P.sheen,
             kx, drift: this.drT, cflow: this.colT, cscale: P.colorScale ?? 1, cspread: P.colorSpread ?? 0.6, cfvar: P.colorFlowVar ?? 0.45, crev: P.colorReverse ?? 0.25, csvar: P.colorScaleVar ?? 0.4, ncol: P.stripColors === 'grad' ? 0 : +(P.stripColors || 1), hold: P.colorHold ?? 0.7, tdepth: P.toneDepth ?? 0.55,
             c1: c1.map(v => v * mag * k), c2: c2.map(v => v * mag * k),
           }));
         } else {
-          RL.draw(gl, strips, target, Object.assign(common, {
+          webgl.draw(gl, strips, target, Object.assign(common, {
             T: this.danceT || 0, n: Math.round(P.count), width: P.width, spanL: P.spanL, spanR: P.spanR, bottom: P.bottom, top: P.top,
             dance: Math.min(2, P.dance + kick), amp: P.amp, freq: P.freq, phaseStep: P.phaseStep, twist: P.twist, wobble: P.wobble,
             depthVar: P.depthVar, gradDir: P.gradDir === 'v' ? 0 : P.gradDir === 'h' ? 1 : 2, rim: P.rim, sheen: P.sheen, cflow: this.colT || 0,

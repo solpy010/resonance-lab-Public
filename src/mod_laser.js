@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // LASER — 레이저 아트: 가는 고휘도 빔(흰 심 + 색 번짐) · 안개 산란 · BPM 동기 패턴 · 레이저 그래픽(리사주·원·별·물결)
 
 (function () {
@@ -59,7 +60,7 @@ import { RL } from './core/rl.js';
     ],
     create(engine, L) {
       const gl = engine.gl;
-      const prog = RL.program(gl, RL.GLSL_NOISE + `
+      const prog = webgl.program(gl, webgl.GLSL_NOISE + `
         uniform vec4 bm[${MAXB}]; uniform vec4 bc[${MAXB}]; uniform float nb, aspect, coreW, haloW, white, fog, fogScale, T, falloff, hot, endDot, endFade, wrap;
         void main(){
           vec2 p = vec2(uv.x * aspect, uv.y);
@@ -108,10 +109,10 @@ import { RL } from './core/rl.js';
         },
         hitAt(u, P) { let h = 0; const fc = engine.project.faces || 6; for (const x of this.hits) { const age = this.time - x.t; const du = (u - x.u) * fc; h += x.s * Math.exp(-du * du * 1.2) * Math.exp(-age / P.decay); } return Math.min(2, h); },
         render(target, P) {
-          RL.clear(gl, target);
+          webgl.clear(gl, target);
           const proj = engine.project, fc = Math.max(1, proj.faces | 0), A = engine.aspect;
           let faces = RL.parseFaces(P.sources, fc); if (!faces.length) faces = [Math.floor(fc / 2)];
-          const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(RL.hexToRgb);
+          const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(webgl.hexToRgb);
           const samp = (x) => { const k = cols.length; x = ((x % 1) + 1) % 1 * k; const i = Math.floor(x), f = x - i; const a = cols[i % k], b = cols[(i + 1) % k]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]; };
           const B = this.beat, D = Math.PI / 180, k = Math.round(P.beams);
           const strobeOn = P.strobe > 0 ? (((B * P.strobeRate) % 1) < 0.5 ? 1 : 1 - P.strobe) : 1;
@@ -143,7 +144,7 @@ import { RL } from './core/rl.js';
                 add(u, v, (P.angle + a) * D, inten, colFor(si, j, u), len); add(u, v, (P.angle - a) * D, inten, colFor(si, j + half, u), len); }
             } else if (P.pattern === 'rain') {
               for (let j = 0; j < kk; j++) { const ph = (j / kk + B / P.sweepBeats * 0.25) % 1; const uu = (f + ph) / fc + P.sourceX; const tilt = P.angle + P.sweep * 0.3 * Math.sin((B / P.sweepBeats + j * 0.37) * Math.PI * 2);
-                const drop = Math.min(1, ((B * 2 + j * 0.61) % 2)); add(uu, v, tilt * D, inten * (0.6 + 0.4 * Math.sin(j * 2.3 + B * 3.1)), colFor(si, j, uu), len * (0.3 + 0.7 * RL.ease.expoOut(drop))); }
+                const drop = Math.min(1, ((B * 2 + j * 0.61) % 2)); add(uu, v, tilt * D, inten * (0.6 + 0.4 * Math.sin(j * 2.3 + B * 3.1)), colFor(si, j, uu), len * (0.3 + 0.7 * webgl.ease.expoOut(drop))); }
             } else if (P.pattern === 'tunnel') {
               const vv = P.sourceY > 0.95 ? 0.5 : v;
               for (let j = 0; j < kk; j++) add(u, vv, (j / kk * 360 + this.time * P.rotate * 120 * P.tempo + P.angle + (si % 2 ? 180 / kk : 0)) * D, inten, colFor(si, j, u), len);
@@ -156,7 +157,7 @@ import { RL } from './core/rl.js';
                 add(u, vv + t * 0.25, (side * (90 - t * fanE * 0.15) + P.sweep * 0.25 * sw(si, j * 0.1)) * D, inten, colFor(si, j, u), reach * A * 0.5); }
             }
           });
-          RL.draw(gl, prog, target, {
+          webgl.draw(gl, prog, target, {
             bm, bc, nb, aspect: A, coreW: P.core / engine.docH, haloW: P.halo / engine.docH, white: P.white, fog: P.fog, fogScale: P.fogScale,
             T: this.time * P.fogSpeed, falloff: P.falloff, hot: P.hotspot, endDot: P.endDot, endFade: P.endFade, wrap: proj.wrap ? 1 : 0,
           });

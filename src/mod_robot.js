@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // ROBOT — RB20-1900ES 로봇팔 군무 (3D 메시, 6축 관절, 구부정 기본 자세, 스타일·템포·다양성·재질·색 흐름)
 // 뿌리(베이스)는 바닥에 고정, 모든 움직임은 관절 회전으로만. 위로 곧게 뻗는 자세는 관절 제한으로 막는다.
 
@@ -210,7 +211,7 @@ import { RL } from './core/rl.js';
           float a = clamp(core + halo * 0.8 * uGlow, 0.0, 1.0) * uA;
           frag = uGlow > 0.5 ? vec4(c * a, a * 0.6) : vec4(uCol * a, a);
         }`;
-      const prog = RL.program(gl, FS, VS), eprog = RL.program(gl, EFS, EVS);
+      const prog = webgl.program(gl, FS, VS), eprog = webgl.program(gl, EFS, EVS);
       for (const p of [prog, eprog]) { /* attribute locations are explicit */ }
       // mesh VAO
       const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
@@ -265,7 +266,7 @@ import { RL } from './core/rl.js';
         // ---------------- layout: [{u, y, z, s, face, order}]
         layout(P) {
           const n = Math.max(1, Math.round(P.count)), fc = Math.max(1, engine.project.faces | 0);
-          const r = RL.rng(RL.hashSeed(engine.project.seed, L.id, 'layout'));
+          const r = webgl.rng(webgl.hashSeed(engine.project.seed, L.id, 'layout'));
           const rs = Array.from({ length: n }, () => [r(), r(), r(), r()]);
           const a0 = P.spanStart, a1 = P.spanEnd, ds = P.depthSpread;
           const offs = {};
@@ -371,22 +372,22 @@ import { RL } from './core/rl.js';
           if (m === 'single') return cols[0];
           let x;
           if (m === 'perArm') x = a.i / cols.length;
-          else if (m === 'random') x = a.i * 0.37 + RL.noise.n2(this.time * Math.abs(P.flowSpeed) * 0.6 + a.i * 3.1, a.i * 7.7) * 1.4;
+          else if (m === 'random') x = a.i * 0.37 + webgl.noise.n2(this.time * Math.abs(P.flowSpeed) * 0.6 + a.i * 3.1, a.i * 7.7) * 1.4;
           else x = a.u * P.flowScale - this.time * P.flowSpeed * 0.25;
-          if (P.randomFlow > 0 && m !== 'random') x += P.randomFlow * RL.noise.n2(this.time * 0.35 + a.i * 4.3, a.i * 1.9) * 1.2;
+          if (P.randomFlow > 0 && m !== 'random') x += P.randomFlow * webgl.noise.n2(this.time * 0.35 + a.i * 4.3, a.i * 1.9) * 1.2;
           return m === 'perArm' && P.randomFlow === 0 ? cols[a.i % cols.length] : samp(x);
         },
 
         render(target, P) {
           const tw = target.w, th = target.h, docH = engine.docH;
-          RL.bindTarget(gl, null);
+          webgl.bindTarget(gl, null);
           gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.viewport(0, 0, tw, th);
           gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.depthMask(true);
           gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
           gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
           const arms = this.layout(P), n = arms.length;
-          const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(RL.hexToRgb);
-          const acc = RL.hexToRgb(P.accent);
+          const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(webgl.hexToRgb);
+          const acc = webgl.hexToRgb(P.accent);
           const cam = M.mul(M.rx(P.camPitch * D2R), M.mul(W2V, M.rz(-P.camYaw * D2R)));
           const Dp = 2600 + (1 - P.persp) * 30000;
           const mat = MATS[P.material] ?? 1;
@@ -420,10 +421,10 @@ import { RL } from './core/rl.js';
               // body
               if (mat !== 4 || P.bodyAlpha > 0.01) {
                 gl.useProgram(prog.p);
-                RL.setUniforms(gl, prog, Object.assign({}, common, {
+                webgl.setUniforms(gl, prog, Object.assign({}, common, {
                   uMat: mat, uRim: P.rim, uDark: P.bodyDark, uAlpha: P.bodyAlpha, uGloss: P.gloss, uEmis: emis, uInt: P.intensity, uAccMix: P.accentMix, uFade: fade, uCol: c, uAcc: acc,
                 }));
-                RL.setBlend(gl, (mat === 1 && P.bodyAlpha < 0.999) || mat === 4 ? 'over' : null);
+                webgl.setBlend(gl, (mat === 1 && P.bodyAlpha < 0.999) || mat === 4 ? 'over' : null);
                 gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 2);
                 gl.depthMask(mat !== 4);
                 gl.bindVertexArray(vao); gl.drawArrays(gl.TRIANGLES, 0, MESH.nv);
@@ -433,10 +434,10 @@ import { RL } from './core/rl.js';
               if (P.edge > 0.001) {
                 gl.useProgram(eprog.p);
                 const ec = glowEdges ? c.map(x => x * P.intensity * (1 + emis) * fade) : (mat === 2 ? c.map(x => x * 0.35 * fade) : c.map(x => x * 0.8 * P.intensity * fade));
-                RL.setUniforms(gl, eprog, Object.assign({}, common, {
+                webgl.setUniforms(gl, eprog, Object.assign({}, common, {
                   uW: P.edgeWidth * pxS * 2, uH: glowEdges ? P.edgeHalo * pxS * 2 : 0, uWhite: glowEdges ? P.edgeWhite : 0, uA: Math.min(1, P.edge) * (P.edge > 1 ? P.edge : 1) * (mat === 4 ? 0.55 : 1), uGlow: glowEdges ? 1 : 0, uCol: ec,
                 }));
-                RL.setBlend(gl, glowEdges ? 'add' : 'over');
+                webgl.setBlend(gl, glowEdges ? 'add' : 'over');
                 gl.depthMask(false);
                 if (P.xray) gl.disable(gl.DEPTH_TEST);
                 gl.bindVertexArray(evao); gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, MESH.ne);

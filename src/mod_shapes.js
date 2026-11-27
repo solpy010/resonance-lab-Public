@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // SHAPES — 중력·반발·마찰에 반응하는 기하 도형 물리 (도형 간 충돌 + 다른 레이어 라인아트와 충돌)
 
 RL.SHAPE_NAMES = { '원': 1, '사각': 0, '삼각': 2, '고리': 3, '육각': 4, '십자': 5, '마름모': 6, circle: 1, square: 0, triangle: 2, ring: 3, hex: 4, cross: 5, diamond: 6 };
@@ -203,8 +204,8 @@ RL.modules.shapes = {
       },
       render(target, P) {
         const gl = engine.gl;
-        RL.clear(gl, target);
-        const sb = engine.sprites, cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(RL.hexToRgb), A = engine.aspect, WR = !!engine.project.wrap;
+        webgl.clear(gl, target);
+        const sb = engine.sprites, cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(webgl.hexToRgb), A = engine.aspect, WR = !!engine.project.wrap;
         sb.begin();
         for (let i = 0; i < N; i++) {
           if (!alive[i]) continue;

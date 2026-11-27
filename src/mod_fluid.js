@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // FLUID — Stable Fluids (Stam 1999 계열) 직접 구현. 염료 밀도 = 알파 → 배경 위에 '물감'처럼 얹힘
 
 RL.modules.fluid = {
@@ -27,16 +28,16 @@ RL.modules.fluid = {
   ],
   create(engine, L) {
     const gl = engine.gl;
-    const P_ = (body) => RL.program(gl, body);
+    const P_ = (body) => webgl.program(gl, body);
     const advect = P_(`uniform sampler2D vel, src; uniform float dt, diss, aspect;
       void main(){ vec2 v = texture(vel, uv).xy; vec2 p = uv - dt * vec2(v.x/aspect, v.y);
         frag = texture(src, p) / (1.0 + diss*dt); }`);
-    const splat = P_(RL.GLSL_NOISE + `uniform sampler2D src; uniform vec2 pt; uniform vec4 val; uniform float rad, aspect, dyeMode, wrap;
+    const splat = P_(webgl.GLSL_NOISE + `uniform sampler2D src; uniform vec2 pt; uniform vec4 val; uniform float rad, aspect, dyeMode, wrap;
       void main(){ vec2 d = uv - pt; d.x = wrapDx(d.x, wrap) * aspect; float g = exp(-dot(d,d)/(rad*rad));
         vec4 s = texture(src, uv);
         if (dyeMode > 0.5) { vec4 o = s + vec4(val.rgb*val.a, val.a)*g; if (o.a > 1.0) o /= o.a; frag = o; }
         else frag = vec4(s.xy + val.xy*g, 0.0, 1.0); }`);
-    const vortexP = P_(RL.GLSL_NOISE + `uniform sampler2D src; uniform vec4 c[6]; uniform float n, aspect, dt, wrap;
+    const vortexP = P_(webgl.GLSL_NOISE + `uniform sampler2D src; uniform vec4 c[6]; uniform float n, aspect, dt, wrap;
       void main(){ vec2 v = texture(src, uv).xy;
         for (int i = 0; i < 6; i++) { if (float(i) >= n) break; vec2 d = uv - c[i].xy; d.x = wrapDx(d.x, wrap) * aspect;
           float r2 = dot(d,d) + c[i].z*c[i].z; v += vec2(-d.y, d.x) / r2 * c[i].w * dt * 0.02 - d / r2 * c[i].w * dt * 0.004; }
@@ -80,16 +81,16 @@ RL.modules.fluid = {
       const vh = Math.round(P.quality), vw = Math.round(vh * engine.aspect);
       const dh = Math.round(P.dyeRes), dw = Math.min(gl._maxTex, Math.round(dh * engine.aspect));
       if (alloc.vw === vw && alloc.vh === vh && alloc.dw === dw && alloc.dh === dh) return false;
-      [vel, dye, pres, divT, curlT].forEach(t => RL.freeTarget(gl, t));
-      vel = RL.pair(gl, vw, vh); pres = RL.pair(gl, vw, vh); divT = RL.target(gl, vw, vh); curlT = RL.target(gl, vw, vh);
-      dye = RL.pair(gl, dw, dh);
+      [vel, dye, pres, divT, curlT].forEach(t => webgl.freeTarget(gl, t));
+      vel = webgl.pair(gl, vw, vh); pres = webgl.pair(gl, vw, vh); divT = webgl.target(gl, vw, vh); curlT = webgl.target(gl, vw, vh);
+      dye = webgl.pair(gl, dw, dh);
       alloc = { vw, vh, dw, dh };
       return true;
     }
     const inst = {
       reset(rng, P) {
         this.rng = rng; alloc = {}; allocate(P);
-        [vel.a, vel.b, pres.a, pres.b, dye.a, dye.b].forEach(t => RL.clear(gl, t));
+        [vel.a, vel.b, pres.a, pres.b, dye.a, dye.b].forEach(t => webgl.clear(gl, t));
         this.em = [];
         for (let i = 0; i < 16; i++) this.em.push({ u: rng(), v: rng(), fu: rng.range(0.03, 0.12), fv: rng.range(0.05, 0.2), pu: rng() * 6.28, pv: rng() * 6.28, ci: i, dir: rng() < 0.5 ? -1 : 1 });
         this.time = 0; this.bursts = [];
@@ -98,8 +99,8 @@ RL.modules.fluid = {
         allocate(P);
         for (const e of evs) this.bursts.push(e);
         if (dt <= 0) return;
-        const A = engine.aspect, cols = (P.colors || []).map(RL.hexToRgb), W = engine.project.wrap ? 1 : 0;
-        [vel, dye, pres].forEach(t => RL.setWrap(gl, t, !!W)); RL.setWrap(gl, divT, !!W); RL.setWrap(gl, curlT, !!W);
+        const A = engine.aspect, cols = (P.colors || []).map(webgl.hexToRgb), W = engine.project.wrap ? 1 : 0;
+        [vel, dye, pres].forEach(t => webgl.setWrap(gl, t, !!W)); webgl.setWrap(gl, divT, !!W); webgl.setWrap(gl, curlT, !!W);
         const pal = cols.length ? cols : [[1, 1, 1]];
         this.time += dt;
         const T = this.time;
@@ -119,9 +120,9 @@ RL.modules.fluid = {
           else if (P.flow === 'still') { continue; }
           else { u = (e.u + T * P.flowSpeed * 0.015 + 10) % 1; v = band + (e.v - 0.5) * 0.7 + Math.sin(T * e.fv * 2 + e.pv) * 0.12; dx = 1; dy = Math.sin(T * e.fu * 4 + e.pu) * 0.8; }
           const fm = P.force * 0.6;
-          RL.draw(gl, splat, vel.b, { src: vel.a, pt: [u, v], val: [dx * fm, dy * fm, 0, 0], rad: P.emitSize, aspect: A, dyeMode: 0, wrap: W }); vel.swap();
+          webgl.draw(gl, splat, vel.b, { src: vel.a, pt: [u, v], val: [dx * fm, dy * fm, 0, 0], rad: P.emitSize, aspect: A, dyeMode: 0, wrap: W }); vel.swap();
           const c = pal[e.ci % pal.length];
-          RL.draw(gl, splat, dye.b, { src: dye.a, pt: [u, v], val: [c[0], c[1], c[2], P.dyeAmount * dt * 5], rad: P.emitSize * 0.8, aspect: A, dyeMode: 1, wrap: W }); dye.swap();
+          webgl.draw(gl, splat, dye.b, { src: dye.a, pt: [u, v], val: [c[0], c[1], c[2], P.dyeAmount * dt * 5], rad: P.emitSize * 0.8, aspect: A, dyeMode: 1, wrap: W }); dye.swap();
         }
         // event bursts
         for (const b of this.bursts) {
@@ -129,42 +130,42 @@ RL.modules.fluid = {
           for (let k = 0; k < 6; k++) {
             const a = k / 6 * Math.PI * 2 + b.r * 6;
             const f = P.eventForce * b.s;
-            RL.draw(gl, splat, vel.b, { src: vel.a, pt: [b.u + Math.cos(a) * P.emitSize / A, b.v + Math.sin(a) * P.emitSize], val: [Math.cos(a) * f, Math.sin(a) * f, 0, 0], rad: P.emitSize, aspect: A, dyeMode: 0, wrap: W }); vel.swap();
+            webgl.draw(gl, splat, vel.b, { src: vel.a, pt: [b.u + Math.cos(a) * P.emitSize / A, b.v + Math.sin(a) * P.emitSize], val: [Math.cos(a) * f, Math.sin(a) * f, 0, 0], rad: P.emitSize, aspect: A, dyeMode: 0, wrap: W }); vel.swap();
           }
-          RL.draw(gl, splat, dye.b, { src: dye.a, pt: [b.u, b.v], val: [c[0], c[1], c[2], Math.min(1, 0.8 * b.s)], rad: P.emitSize * 1.4, aspect: A, dyeMode: 1, wrap: W }); dye.swap();
+          webgl.draw(gl, splat, dye.b, { src: dye.a, pt: [b.u, b.v], val: [c[0], c[1], c[2], Math.min(1, 0.8 * b.s)], rad: P.emitSize * 1.4, aspect: A, dyeMode: 1, wrap: W }); dye.swap();
         }
         this.bursts = [];
         // drift as global push
         if (P.flow === 'drift' && P.flowSpeed > 0) {
           // gentle uniform current: splat large & weak at random heights
-          RL.draw(gl, splat, vel.b, { src: vel.a, pt: [0.0, 0.5], val: [P.flowSpeed * 0.02, 0, 0, 0], rad: 2.0, aspect: 1, dyeMode: 0 }); vel.swap();
+          webgl.draw(gl, splat, vel.b, { src: vel.a, pt: [0.0, 0.5], val: [P.flowSpeed * 0.02, 0, 0, 0], rad: 2.0, aspect: 1, dyeMode: 0 }); vel.swap();
         }
         if (P.flow === 'vortex' && P.vortex > 0) {
           const faces = RL.parseFaces(P.vortexFaces, engine.project.faces);
           const arr = new Float32Array(24); let k = 0; const nf = engine.project.faces;
           for (const f of faces) if (k < 6) arr.set([(f + 0.5) / nf, 0.5, 0.15, P.vortex * 40 * (k % 2 ? -1 : 1)], (k++) * 4);
           if (!k) { arr.set([0.5, 0.5, 0.15, P.vortex * 40], 0); k = 1; }
-          RL.draw(gl, vortexP, vel.b, { src: vel.a, c: arr, n: k, aspect: A, dt, wrap: W }); vel.swap();
+          webgl.draw(gl, vortexP, vel.b, { src: vel.a, c: arr, n: k, aspect: A, dt, wrap: W }); vel.swap();
         }
         // velocity self-advection
-        RL.draw(gl, advect, vel.b, { vel: vel.a, src: vel.a, dt, diss: P.viscosity, aspect: A }); vel.swap();
+        webgl.draw(gl, advect, vel.b, { vel: vel.a, src: vel.a, dt, diss: P.viscosity, aspect: A }); vel.swap();
         // vorticity confinement
-        RL.draw(gl, curlP, curlT, { vel: vel.a, px: vel.texel });
-        RL.draw(gl, vortP, vel.b, { vel: vel.a, cu: curlT, px: vel.texel, amt: P.curl, dt }); vel.swap();
+        webgl.draw(gl, curlP, curlT, { vel: vel.a, px: vel.texel });
+        webgl.draw(gl, vortP, vel.b, { vel: vel.a, cu: curlT, px: vel.texel, amt: P.curl, dt }); vel.swap();
         // projection
-        RL.draw(gl, divP, divT, { vel: vel.a, px: vel.texel, wrap: W });
-        RL.draw(gl, scaleP, pres.b, { src: pres.a, k: 0.8 }); pres.swap();
-        for (let i = 0; i < 22; i++) { RL.draw(gl, presP, pres.b, { pr: pres.a, dv: divT, px: vel.texel }); pres.swap(); }
-        RL.draw(gl, gradP, vel.b, { pr: pres.a, vel: vel.a, px: vel.texel }); vel.swap();
+        webgl.draw(gl, divP, divT, { vel: vel.a, px: vel.texel, wrap: W });
+        webgl.draw(gl, scaleP, pres.b, { src: pres.a, k: 0.8 }); pres.swap();
+        for (let i = 0; i < 22; i++) { webgl.draw(gl, presP, pres.b, { pr: pres.a, dv: divT, px: vel.texel }); pres.swap(); }
+        webgl.draw(gl, gradP, vel.b, { pr: pres.a, vel: vel.a, px: vel.texel }); vel.swap();
         // dye advection
-        RL.draw(gl, advect, dye.b, { vel: vel.a, src: dye.a, dt, diss: P.fade, aspect: A }); dye.swap();
+        webgl.draw(gl, advect, dye.b, { vel: vel.a, src: dye.a, dt, diss: P.fade, aspect: A }); dye.swap();
       },
       render(target, P) {
-        RL.clear(gl, target);
-        RL.setWrap(gl, dye, !!engine.project.wrap);
-        RL.draw(gl, drawP, target, { dye: dye.a, px: dye.texel, relief: P.relief, sheen: P.sheen, intensity: P.intensity });
+        webgl.clear(gl, target);
+        webgl.setWrap(gl, dye, !!engine.project.wrap);
+        webgl.draw(gl, drawP, target, { dye: dye.a, px: dye.texel, relief: P.relief, sheen: P.sheen, intensity: P.intensity });
       },
-      dispose() { [vel, dye, pres, divT, curlT].forEach(t => RL.freeTarget(gl, t)); },
+      dispose() { [vel, dye, pres, divT, curlT].forEach(t => webgl.freeTarget(gl, t)); },
     };
     return inst;
   },

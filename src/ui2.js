@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import { $, h } from './ui.js';
+import * as webgl from './gl.js';
 // RESONANCE LAB — menubar, resizable panels, zoom/pan, undo/redo, scene shelf (Ctrl+S), acts, asset loading
 
 Object.assign(RL.App.prototype, {
@@ -112,7 +113,7 @@ Object.assign(RL.App.prototype, {
     const presetItems = Object.keys(RL.presets).map(k => ({ label: RL.presets[k].label, fn: () => { if (P().layers.length && !confirm('현재 작업을 이 프리셋으로 바꿀까요? (Ctrl+Z로 되돌릴 수 있습니다)')) return; A.loadProject(RL.presets[k].make(), true); } }));
     const scaleItems = [['0.25', '25%'], ['0.5', '50%'], ['1', '100%']].map(([v, l]) => ({ label: '미리보기 해상도 ' + l, check: () => String(A.engine.scale) === v, fn: () => { $('#scale').value = v; $('#scale').dispatchEvent(new Event('change')); } }));
     const addItems = Object.keys(RL.modules).map(k => ({ label: RL.modules[k].icon + '  ' + RL.modules[k].label + ' 추가', fn: () => A.addLayer(k) }));
-    const easeItems = ['quintOut', 'inOut', 'expoOut', 'linear', 'hold'].filter(e => RL.ease[e]).map(e => ({ label: '키프레임 이징: ' + e, check: () => (A.prefs.ease || 'quintOut') === e, fn: () => { A.prefs.ease = e; A.savePrefs(); } }));
+    const easeItems = ['quintOut', 'inOut', 'expoOut', 'linear', 'hold'].filter(e => webgl.ease[e]).map(e => ({ label: '키프레임 이징: ' + e, check: () => (A.prefs.ease || 'quintOut') === e, fn: () => { A.prefs.ease = e; A.savePrefs(); } }));
     this.menus = [
       ['파일', [
         { label: '새 프로젝트', sc: 'Ctrl+N', fn: () => A.newProject() },

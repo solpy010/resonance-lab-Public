@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // DOT — 스프링 격자 도트 (이웃 결합으로 파동이 실제로 전파). 도트 융기·기둥 돌출
 
 RL.modules.dot = {
@@ -77,8 +78,8 @@ RL.modules.dot = {
         const target = new Float32Array(rows * cols);
         if (P.noiseAmp > 0 && P.layout !== 'sea') for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
           let nv;
-          if (WR) { const th = (i / cols) * Math.PI * 2, R = A * P.noiseScale / (Math.PI * 2); nv = RL.noise.n3(Math.cos(th) * R, Math.sin(th) * R + j / rows * P.noiseScale * 0.5, tz); }
-          else nv = RL.noise.n3((i / cols) * A * P.noiseScale, j / rows * P.noiseScale * 0.5, tz);
+          if (WR) { const th = (i / cols) * Math.PI * 2, R = A * P.noiseScale / (Math.PI * 2); nv = webgl.noise.n3(Math.cos(th) * R, Math.sin(th) * R + j / rows * P.noiseScale * 0.5, tz); }
+          else nv = webgl.noise.n3((i / cols) * A * P.noiseScale, j / rows * P.noiseScale * 0.5, tz);
           target[j * cols + i] = Math.max(0, nv * 1.8 - 0.05) * P.noiseAmp * 1.6;
         }
         for (let s = 0; s < sub; s++) {
@@ -93,11 +94,11 @@ RL.modules.dot = {
         }
       },
       render(target, P) {
-        RL.clear(gl, target);
+        webgl.clear(gl, target);
         if (P.layout === 'sea') { this.renderSea(target, P); return; }
         const sb = engine.sprites, A = engine.aspect, docH = engine.docH, WR = !!engine.project.wrap, nF = engine.project.faces;
         sb.begin();
-        const lo = RL.hexToRgb(P.colorLow), hi = RL.hexToRgb(P.colorHigh), shape = P.shape === 'square' ? 0 : 1;
+        const lo = webgl.hexToRgb(P.colorLow), hi = webgl.hexToRgb(P.colorHigh), shape = P.shape === 'square' ? 0 : 1;
         const ang = P.extrudeAngle * Math.PI / 180, za = P.extrudeZ * Math.PI / 180;
         const ux = Math.sin(ang), uy = Math.cos(ang), cp = Math.cos(za), sz = Math.sin(za);
         const items = [];
@@ -142,7 +143,7 @@ RL.modules.dot = {
       // 해수면 표면: 원근으로 모이는 도트 바다 + 완만한 일렁임 + 윤슬(반짝임). 달·밤하늘은 렌더하지 않음.
       renderSea(target, P) {
         const sb = engine.sprites, A = engine.aspect, WR = !!engine.project.wrap, docW = engine.docW;
-        const lo = RL.hexToRgb(P.colorLow), hi = RL.hexToRgb(P.colorHigh), shape = P.shape === 'square' ? 0 : 1;
+        const lo = webgl.hexToRgb(P.colorLow), hi = webgl.hexToRgb(P.colorHigh), shape = P.shape === 'square' ? 0 : 1;
         const T = this.time, flow = T * (P.seaSpeed ?? 0.35);
         const hpow = 1 + (P.seaHorizon ?? 0.6) * 3.5;         // perspective compression toward horizon
         const glints = [];
@@ -157,12 +158,12 @@ RL.modules.dot = {
             // gentle swell (a few flowing octaves) + beat ripples from the spring field
             let wv = Math.sin(px * P.seaScale * 1.3 + t * 1.6 - flow * 1.3) * 0.5
                    + Math.sin(px * P.seaScale * 0.6 - t * 1.0 + flow * 0.8) * 0.3
-                   + RL.noise.n3(px * P.seaScale * 0.6, t * 1.4 + flow * 0.4, 3.1) * 0.9;
+                   + webgl.noise.n3(px * P.seaScale * 0.6, t * 1.4 + flow * 0.4, 3.1) * 0.9;
             const id = j * cols + i, ripple = h ? h[id] : 0;
             const yy = yb + (wv * (P.seaSwell ?? 0.3) * 0.18 + ripple * 0.18) * depth;
             // 윤슬: fast high-freq crest highlights broken into sparkles
             let g = Math.pow(Math.max(0, 0.5 + 0.5 * Math.sin(px * P.seaScale * 6.0 + t * 9.0 - flow * 5.0 + wv * 3.0)), (P.seaGlintSize ?? 0.5) * 22 + 5);
-            g *= (0.4 + 0.6 * RL.noise.n2(px * 4.0 + flow * 0.9, t * 9.0 + 5.0)) * (P.seaGlint ?? 0.8);
+            g *= (0.4 + 0.6 * webgl.noise.n2(px * 4.0 + flow * 0.9, t * 9.0 + 5.0)) * (P.seaGlint ?? 0.8);
             g = Math.min(1.5, g * depth);
             const base = (0.18 + Math.max(0, wv * 0.5 + 0.5) * 0.5) + Math.max(0, ripple) * 0.3;
             const e = Math.min(1, base + g);

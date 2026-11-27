@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // Instanced sprite & neon-segment renderers (sizes in document pixels; positions normalized 0..1, y up)
 
 RL.SpriteBatch = class {
@@ -54,7 +55,7 @@ RL.SpriteBatch = class {
       }
       frag = col * clamp(a, 0.0, 1.5);   // premultiplied
     }`;
-    this.prog = RL.program(gl, fs, vs);
+    this.prog = webgl.program(gl, fs, vs);
     this.vao = gl.createVertexArray();
     gl.bindVertexArray(this.vao);
     const qb = gl.createBuffer();
@@ -84,10 +85,10 @@ RL.SpriteBatch = class {
   flush(target, docW, blend) {
     const gl = this.gl;
     if (!this.n) return;
-    RL.bindTarget(gl, target);
+    webgl.bindTarget(gl, target);
     gl.useProgram(this.prog.p);
-    RL.setUniforms(gl, this.prog, { res: [target.w, target.h], pxScale: target.w / docW });
-    RL.setBlend(gl, blend || 'over');
+    webgl.setUniforms(gl, this.prog, { res: [target.w, target.h], pxScale: target.w / docW });
+    webgl.setBlend(gl, blend || 'over');
     gl.bindVertexArray(this.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.ib);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.data, 0, this.n * this.stride);
@@ -183,7 +184,7 @@ RL.SegBatch = class {
       a = clamp(a, 0.0, 1.0);
       frag = vec4(rgb*a*A, a*A);
     }`;
-    this.prog = RL.program(gl, fs, vs);
+    this.prog = webgl.program(gl, fs, vs);
     this.vao = gl.createVertexArray();
     gl.bindVertexArray(this.vao);
     const qb = gl.createBuffer();
@@ -212,10 +213,10 @@ RL.SegBatch = class {
   flush(target, docW, blend) {
     const gl = this.gl;
     if (!this.n) return;
-    RL.bindTarget(gl, target);
+    webgl.bindTarget(gl, target);
     gl.useProgram(this.prog.p);
-    RL.setUniforms(gl, this.prog, { res: [target.w, target.h], pxScale: target.w / docW });
-    RL.setBlend(gl, blend || 'screen');
+    webgl.setUniforms(gl, this.prog, { res: [target.w, target.h], pxScale: target.w / docW });
+    webgl.setBlend(gl, blend || 'screen');
     gl.bindVertexArray(this.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.ib);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.data, 0, this.n * this.stride);
@@ -250,7 +251,7 @@ RL.TexBatch = class {
       if (luma > 0.5) t.a = max(t.r, max(t.g, t.b));       // video on black → luminance as alpha
       vec3 rgb = t.rgb * col.rgb; float a = t.a * col.a;
       frag = vec4(rgb * a, a); }`;
-    this.prog = RL.program(gl, fs, vs);
+    this.prog = webgl.program(gl, fs, vs);
     this.vao = gl.createVertexArray();
     gl.bindVertexArray(this.vao);
     const qb = gl.createBuffer();
@@ -275,10 +276,10 @@ RL.TexBatch = class {
   flush(target, docW, tex, blend) {
     const gl = this.gl;
     if (!this.n || !tex) { this.n = 0; return; }
-    RL.bindTarget(gl, target);
+    webgl.bindTarget(gl, target);
     gl.useProgram(this.prog.p);
-    RL.setUniforms(gl, this.prog, { res: [target.w, target.h], pxScale: target.w / docW, tex });
-    RL.setBlend(gl, blend || 'over');
+    webgl.setUniforms(gl, this.prog, { res: [target.w, target.h], pxScale: target.w / docW, tex });
+    webgl.setBlend(gl, blend || 'over');
     gl.bindVertexArray(this.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.ib);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.data, 0, this.n * this.stride);

@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // FLOATERS — 오브젝트 유영: 화면 하단 바깥에서 태어나 부력·중력·저항을 받아 위로 떠오르고, 마커 타이밍에 '팡' 터지며 사라짐.
 // 결정론: 레이어 rng + 고정 dt → 같은 프레임은 언제나 같은 결과.
 
@@ -83,7 +84,7 @@ RL.modules.floaters = {
       pop(o, P, t) {
         if (o.dead) return;
         o.dead = true;
-        if (P.popEffect !== 'none') this.fx.push({ x: o.x, y: o.y, t0: t, size: o.size * P.popSize, seed: RL.hashSeed(L.id, 'pop', o.id), col: o.col, sc: o.sc });
+        if (P.popEffect !== 'none') this.fx.push({ x: o.x, y: o.y, t0: t, size: o.size * P.popSize, seed: webgl.hashSeed(L.id, 'pop', o.id), col: o.col, sc: o.sc });
       },
       step(dt, t, evs, P, rawDt) {
         const r = this.rng, A = engine.aspect, wrap = !!engine.project.wrap;
@@ -94,7 +95,7 @@ RL.modules.floaters = {
           for (const e of evs) {
             const key = P.popByFace ? e.t + ':' + e.face : String(e.t);
             if (seen.has(key)) continue; seen.add(key);
-            this.pend.push({ t: e.t + P.popOffset / 1000, face: P.popByFace ? e.face : -1, s: e.s, seed: RL.hashSeed(L.id, 'ev', Math.round(e.t * 1000), e.face) });
+            this.pend.push({ t: e.t + P.popOffset / 1000, face: P.popByFace ? e.face : -1, s: e.s, seed: webgl.hashSeed(L.id, 'ev', Math.round(e.t * 1000), e.face) });
           }
         }
         for (const e of evs) { if (P.burstOnMarker > 0 && (P.popByFace || e.face === evs[0].face)) for (let i = 0; i < P.burstOnMarker; i++) if (this.obj.length < P.maxCount * 1.5) this.spawn(P); }
@@ -133,7 +134,7 @@ RL.modules.floaters = {
           const e = this.pend.shift();
           let cand = this.obj.filter(o => !o.dead && o.y > P.popMinY && o.y < 1.02 && (e.face < 0 || Math.floor(o.x * n) === e.face));
           if (!cand.length) continue;
-          const er = RL.rng(e.seed);
+          const er = webgl.rng(e.seed);
           cand = cand.map(o => [o, (o.rank + er()) % 1]).sort((a, b) => a[1] - b[1]).map(v => v[0]);
           const k = P.popRatio >= 0.999 ? cand.length : Math.round(cand.length * P.popRatio + er() * 0.5 * (P.popRatio > 0 ? 1 : 0));
           for (let i = 0; i < Math.min(k, cand.length); i++) this.pop(cand[i], P, e.t);
@@ -143,15 +144,15 @@ RL.modules.floaters = {
         this.fx = this.fx.filter(f => this.now - f.t0 < P.popLife);
       },
       render(target, P) {
-        RL.clear(gl, target);
+        webgl.clear(gl, target);
         const T = this.now, tb = engine.texb, sb = engine.sprites, sg = engine.segs, A = engine.aspect, wrap = !!engine.project.wrap;
         const objs = this.obj.slice().sort((a, b) => b.z - a.z);   // far first
         // group draws by texture to keep sort-ish order cheap: far→near per texture
         const groups = new Map();
         for (const o of objs) {
           let tex, uv, asp = 1, luma = false, custom = false;
-          if (o.kind.b) { const b = engine.builtin(o.kind.b); tex = b; uv = RL.atlasUV(b, o.kind.k); asp = (b.w / b.cols) / (b.h / b.rows); }
-          else { const a = engine.asset(o.kind.a); if (!a) continue; tex = a; custom = true; luma = a.luma; const fr = a.frames > 1 ? Math.floor((T - o.born + o.ph) * (a.fps || 24)) : 0; uv = RL.atlasUV(a, fr); asp = (a.w / a.cols) / (a.h / a.rows); }
+          if (o.kind.b) { const b = engine.builtin(o.kind.b); tex = b; uv = webgl.atlasUV(b, o.kind.k); asp = (b.w / b.cols) / (b.h / b.rows); }
+          else { const a = engine.asset(o.kind.a); if (!a) continue; tex = a; custom = true; luma = a.luma; const fr = a.frames > 1 ? Math.floor((T - o.born + o.ph) * (a.fps || 24)) : 0; uv = webgl.atlasUV(a, fr); asp = (a.w / a.cols) / (a.h / a.rows); }
           if (!groups.has(tex)) groups.set(tex, []);
           groups.get(tex).push({ o, uv, asp, luma, custom });
         }
@@ -159,16 +160,16 @@ RL.modules.floaters = {
         const xs = o => { const w = o.size / engine.docW; const out = [o.x]; if (wrap) { if (o.x < w) out.push(o.x + 1); if (o.x > 1 - w) out.push(o.x - 1); } return out; };
         // soft halo behind
         sb.begin();
-        for (const o of objs) { const c = RL.hexToRgb(o.col); for (const x of xs(o)) sb.push(x, o.y, o.size * 1.05, o.size * 1.05, 0, c[0], c[1], c[2], 0.08 * P.glow * dim(o), 1, 1, 0.6, 0); }
+        for (const o of objs) { const c = webgl.hexToRgb(o.col); for (const x of xs(o)) sb.push(x, o.y, o.size * 1.05, o.size * 1.05, 0, c[0], c[1], c[2], 0.08 * P.glow * dim(o), 1, 1, 0.6, 0); }
         sb.flush(target, engine.docW, 'add');
         for (const [tex, list] of groups) {
           // glow pass
           if (P.glow > 0) {
-            for (const { o, uv, asp, luma } of list) { const c = RL.hexToRgb(o.col); for (const x of xs(o)) tb.push(x, o.y, o.size * asp * 1.07, o.size * 1.07, o.rot, c[0], c[1], c[2], 0.35 * P.glow * dim(o), uv[0], uv[1], uv[2], uv[3], luma); }
+            for (const { o, uv, asp, luma } of list) { const c = webgl.hexToRgb(o.col); for (const x of xs(o)) tb.push(x, o.y, o.size * asp * 1.07, o.size * 1.07, o.rot, c[0], c[1], c[2], 0.35 * P.glow * dim(o), uv[0], uv[1], uv[2], uv[3], luma); }
             tb.flush(target, engine.docW, tex.tex, 'add');
           }
           for (const { o, uv, asp, luma, custom } of list) {
-            const c = RL.hexToRgb(o.col), k = custom ? P.tint : Math.max(P.tint, 0.0001);
+            const c = webgl.hexToRgb(o.col), k = custom ? P.tint : Math.max(P.tint, 0.0001);
             const tc = [1 + (c[0] - 1) * k, 1 + (c[1] - 1) * k, 1 + (c[2] - 1) * k];
             const life = T - o.born, fadeIn = Math.min(1, life * 3);
             for (const x of xs(o)) tb.push(x, o.y, o.size * asp, o.size, o.rot, tc[0], tc[1], tc[2], dim(o) * fadeIn, uv[0], uv[1], uv[2], uv[3], luma);
@@ -178,13 +179,13 @@ RL.modules.floaters = {
         function custom(list) { return list.length && list[0].custom; }
         // pop effects
         const imgA = P.popEffect === 'image' ? engine.asset(P.popAsset) : null;
-        const pal = (P.popColors && P.popColors.length ? P.popColors : ['#ffffff']).map(RL.hexToRgb);
+        const pal = (P.popColors && P.popColors.length ? P.popColors : ['#ffffff']).map(webgl.hexToRgb);
         sb.begin(); sg.begin(); tb.begin();
         for (const f of this.fx) {
           const age = (T - f.t0) / P.popLife; if (age < 0 || age > 1) continue;
-          const r = RL.rng(f.seed);
+          const r = webgl.rng(f.seed);
           const types = P.popEffect === 'random' ? [RL.FX_TYPES[r.int(RL.FX_TYPES.length)], 'sparks', 'flash'] : [P.popEffect];
-          const colors = P.popUseColor ? [RL.hexToRgb(f.col), ...pal] : pal;
+          const colors = P.popUseColor ? [webgl.hexToRgb(f.col), ...pal] : pal;
           for (const x of (wrap ? [f.x, f.x + 1, f.x - 1] : [f.x])) {
             if (x < -0.3 || x > 1.3) continue;
             const e = { x, y: f.y, age01: age, size: f.size, seed: f.seed, colors, count: Math.round(P.popCount * f.sc + 2), types, intensity: P.intensity };

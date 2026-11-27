@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // PARTICLE — CPU 결정적 파티클 (컬 노이즈 난류, 깊이별 크기·속도·밝기 차등, 팬라이트 그리드)
 
 RL.modules.particle = {
@@ -96,7 +97,7 @@ RL.modules.particle = {
           age[i] += dt;
           const sp = 1.25 - dep[i] * 0.85;
           let ax = 0, ay = P.buoyancy * 0.1;
-          if (P.turbulence > 0) { const c = RL.noise.curl(x[i] * sc * A, y[i] * sc, tz + dep[i] * 3); ax += c[0] * P.turbulence * 0.2; ay += c[1] * P.turbulence * 0.2; }
+          if (P.turbulence > 0) { const c = webgl.noise.curl(x[i] * sc * A, y[i] * sc, tz + dep[i] * 3); ax += c[0] * P.turbulence * 0.2; ay += c[1] * P.turbulence * 0.2; }
           if (P.swirl !== 0) {
             let best = centers[0], bd = 9;
             for (const c of centers) { let d = Math.abs(x[i] - c); if (WR) d = Math.min(d, 1 - d); if (d < bd) { bd = d; best = c; } }
@@ -111,16 +112,16 @@ RL.modules.particle = {
         }
       },
       render(target, P) {
-        const sb = engine.sprites, cols = (P.colors || ['#ffffff']).map(RL.hexToRgb);
-        if (P.trail > 0 && this.cleared) RL.draw(gl, fadeProg, target, { k: 1 - P.trail }, 'mult');
-        else RL.clear(gl, target);
+        const sb = engine.sprites, cols = (P.colors || ['#ffffff']).map(webgl.hexToRgb);
+        if (P.trail > 0 && this.cleared) webgl.draw(gl, fadeProg, target, { k: 1 - P.trail }, 'mult');
+        else webgl.clear(gl, target);
         this.cleared = true;
         sb.begin();
         const shape = P.shape === 'square' ? 0 : 1, T = this.time, WR = !!engine.project.wrap;
         const pick = (f) => { const n = cols.length; const p = Math.min(n - 1.0001, Math.max(0, f * (n - 1))); const i = Math.floor(p), w = p - i; const a = cols[i], b = cols[Math.min(n - 1, i + 1)]; return [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w, a[2] + (b[2] - a[2]) * w]; };
         if (P.emitter === 'grid') {
           const rows = Math.round(P.gridRows), nf = engine.project.faces, cpf = Math.round(P.gridCols);
-          const r = RL.rng(RL.hashSeed(engine.project.seed, L.id, 'grid'));
+          const r = webgl.rng(webgl.hashSeed(engine.project.seed, L.id, 'grid'));
           for (let f = 0; f < nf; f++) {
             const lag = r() * P.faceLag;
             for (let row = 0; row < rows; row++) {

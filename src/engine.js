@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // RESONANCE LAB — engine: deterministic frame clock, layer graph, 2층 post, background/alpha output
 
 RL.modules = {};
@@ -57,7 +58,7 @@ RL.evalKeys = function (keys, t, fallback) {
   for (let i = 0; i < keys.length - 1; i++) {
     const a = keys[i], b = keys[i + 1];
     if (t >= a.t && t <= b.t) {
-      const f = (RL.ease[b.e || 'quintOut'] || RL.ease.quintOut)((t - a.t) / Math.max(1e-6, b.t - a.t));
+      const f = (webgl.ease[b.e || 'quintOut'] || webgl.ease.quintOut)((t - a.t) / Math.max(1e-6, b.t - a.t));
       return a.v + (b.v - a.v) * f;
     }
   }
@@ -71,7 +72,7 @@ RL.parseFaces = function (str, nFaces) {
 RL.Engine = class {
   constructor(canvas) {
     this.canvas = canvas;
-    const gl = this.gl = RL.createGL(canvas);
+    const gl = this.gl = webgl.createGL(canvas);
     this.scale = 0.5;
     this.frame = 0;
     this.view = { grayscale: false, glowOff: false, checker: true, seam: false };
@@ -82,7 +83,7 @@ RL.Engine = class {
     this.builtins = {};
     this.onAssetLoad = null;
     this.prog = {
-      composite: RL.program(gl, `
+      composite: webgl.program(gl, `
         uniform sampler2D src, dst; uniform float opacity, depth, mode; uniform vec3 bg;
         vec3 hard(vec3 b, vec3 s){ return mix(b*2.0*s, 1.0 - (1.0-b)*(1.0-(2.0*s-1.0)), step(0.5, s)); }
         vec3 soft(vec3 b, vec3 s){ vec3 dd = mix(((16.0*b-12.0)*b+4.0)*b, sqrt(b), step(0.25, b));
@@ -107,19 +108,19 @@ RL.Engine = class {
           vec3 cb = d.a > 1e-5 ? clamp(d.rgb / d.a, 0.0, 8.0) : vec3(0.0);
           vec3 b = B(cb, cs, mode);
           frag = vec4((1.0 - d.a) * s.rgb + (1.0 - s.a) * d.rgb + s.a * d.a * b, s.a + d.a * (1.0 - s.a)); }`),
-      blur: RL.program(gl, `
+      blur: webgl.program(gl, `
         uniform sampler2D src; uniform vec2 dir;
         void main(){ vec4 s = texture(src, uv)*0.227027;
           s += (texture(src, uv+dir*1.3846)+texture(src, uv-dir*1.3846))*0.3162162;
           s += (texture(src, uv+dir*3.2308)+texture(src, uv-dir*3.2308))*0.0702703;
           frag = s; }`),
-      copy: RL.program(gl, `uniform sampler2D src; void main(){ frag = texture(src, uv); }`),
-      fade: RL.program(gl, `uniform float k; void main(){ frag = vec4(0.0,0.0,0.0,k); }`),
-      bright: RL.program(gl, `
+      copy: webgl.program(gl, `uniform sampler2D src; void main(){ frag = texture(src, uv); }`),
+      fade: webgl.program(gl, `uniform float k; void main(){ frag = vec4(0.0,0.0,0.0,k); }`),
+      bright: webgl.program(gl, `
         uniform sampler2D src; uniform float th;
         void main(){ vec4 c = texture(src, uv); float l = max(c.r, max(c.g, c.b));
           float w = smoothstep(th, th + 0.35, l); frag = vec4(c.rgb * w, 1.0); }`),
-      post: RL.program(gl, RL.GLSL_NOISE + `
+      post: webgl.program(gl, webgl.GLSL_NOISE + `
         uniform sampler2D src, g1, g2, g3;
         uniform float glow, radius, halation, grain, chroma, exposure, contrast, saturation, impact, impactMode, frameN;
         uniform vec2 res;
@@ -147,7 +148,7 @@ RL.Engine = class {
             else c.rgb = mix(c.rgb, c.a - min(c.rgb, c.a), impact);
           }
           frag = c; }`),
-      present: RL.program(gl, `
+      present: webgl.program(gl, `
         uniform sampler2D src; uniform vec3 bg; uniform float mode, gray, flip, unpremul, shift; uniform vec2 res;
         void main(){
           vec2 p = vec2(fract(uv.x + shift), flip > 0.5 ? 1.0 - uv.y : uv.y);
@@ -183,14 +184,14 @@ RL.Engine = class {
     if (rh > max) { rw = Math.round(rw * max / rh); rh = max; }
     this.rw = rw; this.rh = rh;
     this.canvas.width = rw; this.canvas.height = rh;
-    for (const k of ['accumA', 'accumB', 'out', 'tmp', 'b1', 'b1t', 'b2', 'b2t', 'b3', 'b3t', 'exportT']) RL.freeTarget(gl, this[k]);
-    this.accumA = RL.target(gl, rw, rh); this.accumB = RL.target(gl, rw, rh); this.accum = this.accumA;
-    this.out = RL.target(gl, rw, rh);
-    this.tmp = RL.target(gl, rw, rh);
-    this.b1 = RL.target(gl, rw / 2, rh / 2); this.b1t = RL.target(gl, rw / 2, rh / 2);
-    this.b2 = RL.target(gl, rw / 6, rh / 6); this.b2t = RL.target(gl, rw / 6, rh / 6);
-    this.b3 = RL.target(gl, rw / 16, rh / 16); this.b3t = RL.target(gl, rw / 16, rh / 16);
-    this.exportT = RL.target(gl, rw, rh, { format: 'rgba8', nearest: true });
+    for (const k of ['accumA', 'accumB', 'out', 'tmp', 'b1', 'b1t', 'b2', 'b2t', 'b3', 'b3t', 'exportT']) webgl.freeTarget(gl, this[k]);
+    this.accumA = webgl.target(gl, rw, rh); this.accumB = webgl.target(gl, rw, rh); this.accum = this.accumA;
+    this.out = webgl.target(gl, rw, rh);
+    this.tmp = webgl.target(gl, rw, rh);
+    this.b1 = webgl.target(gl, rw / 2, rh / 2); this.b1t = webgl.target(gl, rw / 2, rh / 2);
+    this.b2 = webgl.target(gl, rw / 6, rh / 6); this.b2t = webgl.target(gl, rw / 6, rh / 6);
+    this.b3 = webgl.target(gl, rw / 16, rh / 16); this.b3t = webgl.target(gl, rw / 16, rh / 16);
+    this.exportT = webgl.target(gl, rw, rh, { format: 'rgba8', nearest: true });
     for (const L of this.layers) this.disposeLayer(L);
     this.layers = [];
     this.syncLayers();
@@ -199,7 +200,7 @@ RL.Engine = class {
 
   disposeLayer(L) {
     if (L.inst && L.inst.dispose) L.inst.dispose();
-    RL.freeTarget(this.gl, L.target);
+    webgl.freeTarget(this.gl, L.target);
   }
 
   // keep engine layer instances in sync with project.layers (by id)
@@ -211,7 +212,7 @@ RL.Engine = class {
       if (!L) {
         const M = RL.modules[def.type];
         if (!M) continue;
-        L = { id: def.id, type: def.type, def, target: RL.target(this.gl, this.rw, this.rh) };
+        L = { id: def.id, type: def.type, def, target: webgl.target(this.gl, this.rw, this.rh) };
         L.inst = M.create(this, L);
         L.needsReset = true;
       }
@@ -232,9 +233,9 @@ RL.Engine = class {
 
   resetLayer(L) {
     const P = this.project;
-    L.rng = RL.rng(RL.hashSeed(P.seed, L.id));
+    L.rng = webgl.rng(webgl.hashSeed(P.seed, L.id));
     L.cur = this.evalLayer(L, 0);
-    RL.clear(this.gl, L.target);
+    webgl.clear(this.gl, L.target);
     L.inst.reset(L.rng, L.cur);
     L.events = this.buildSchedule(L);
     L.evPtr = 0;
@@ -252,12 +253,12 @@ RL.Engine = class {
     const P = this.project, R = L.def.react || RL.defaultReact();
     if (!R.enabled) return [];
     const n = Math.max(1, P.faces | 0);
-    const rng = RL.rng(RL.hashSeed(P.seed, L.id, 'events'));
+    const rng = webgl.rng(webgl.hashSeed(P.seed, L.id, 'events'));
     const out = [];
     const origin = Math.max(0, RL.parseFaces(R.origin, n)[0] ?? Math.floor(n / 2));
     const list = RL.parseFaces(R.list, n);
     (P.markers || []).forEach((m, mi) => {
-      const mr = RL.rng(RL.hashSeed(P.seed, 'marker', mi, Math.round(m.t * 1000)));   // same marker → same spot on every layer
+      const mr = webgl.rng(webgl.hashSeed(P.seed, 'marker', mi, Math.round(m.t * 1000)));   // same marker → same spot on every layer
       const mFace = mr.int(n), mju = mr() - 0.5, mjv = mr() - 0.5;
       let faces = [];
       if (R.faces === 'all') faces = Array.from({ length: n }, (_, i) => [i, 0]);
@@ -313,30 +314,30 @@ RL.Engine = class {
   // ------------------------------------------------------------ rendering
   render() {
     const gl = this.gl, P = this.project;
-    const bg = RL.hexToRgb(P.bg.mode === 'black' ? '#000000' : P.bg.mode === 'chroma' ? P.bg.chroma : P.bg.color);
+    const bg = webgl.hexToRgb(P.bg.mode === 'black' ? '#000000' : P.bg.mode === 'chroma' ? P.bg.chroma : P.bg.color);
     const atmo = P.bg.mode === 'solid' ? bg : (P.bg.mode === 'black' ? [0, 0, 0] : [0, 0, 0]);
     const W = !!P.wrap;
-    for (const k of ['accumA', 'accumB', 'out', 'tmp', 'b1', 'b1t', 'b2', 'b2t', 'b3', 'b3t']) RL.setWrap(gl, this[k], W);
+    for (const k of ['accumA', 'accumB', 'out', 'tmp', 'b1', 'b1t', 'b2', 'b2t', 'b3', 'b3t']) webgl.setWrap(gl, this[k], W);
     let acc = this.accumA, nxt = this.accumB;
-    RL.clear(gl, acc);
+    webgl.clear(gl, acc);
     for (const L of this.layers) {
       if (L.needsReset) this.resetLayer(L);
       if (!L.def.enabled) continue;
       const cur = L.cur || this.evalLayer(L, this.frame / P.fps);
-      RL.setWrap(gl, L.target, W);
+      webgl.setWrap(gl, L.target, W);
       L.inst.render(L.target, cur);
       let src = L.target;
       if (cur._blur > 0.001) {
         const r = cur._blur * 10 * (this.rw / this.docW) + 0.5;
         for (let i = 0; i < 2; i++) {
-          RL.draw(gl, this.prog.blur, this.tmp, { src, dir: [r / this.rw, 0] });
-          RL.draw(gl, this.prog.blur, this.out, { src: this.tmp, dir: [0, r / this.rh] });
+          webgl.draw(gl, this.prog.blur, this.tmp, { src, dir: [r / this.rw, 0] });
+          webgl.draw(gl, this.prog.blur, this.out, { src: this.tmp, dir: [0, r / this.rh] });
           src = this.out;
         }
-        RL.draw(gl, this.prog.copy, this.tmp, { src: this.out });
+        webgl.draw(gl, this.prog.copy, this.tmp, { src: this.out });
         src = this.tmp;
       }
-      RL.draw(gl, this.prog.composite, nxt, { src, dst: acc, opacity: cur._opacity, depth: cur._depth, bg: atmo, mode: RL.BLEND_ID[L.def.blend] ?? 0 });
+      webgl.draw(gl, this.prog.composite, nxt, { src, dst: acc, opacity: cur._opacity, depth: cur._depth, bg: atmo, mode: RL.BLEND_ID[L.def.blend] ?? 0 });
       const t = acc; acc = nxt; nxt = t;
     }
     this.accum = acc;
@@ -347,19 +348,19 @@ RL.Engine = class {
     const gl = this.gl, P = this.project, po = P.post;
     const glow = this.view.glowOff ? 0 : po.glow;
     if (glow > 0 || po.halation > 0) {
-      RL.draw(gl, this.prog.bright, this.b1, { src: this.accum, th: po.glowThreshold });
+      webgl.draw(gl, this.prog.bright, this.b1, { src: this.accum, th: po.glowThreshold });
       const blurT = (t, tt, r) => {
-        RL.draw(gl, this.prog.blur, tt, { src: t, dir: [r / t.w, 0] });
-        RL.draw(gl, this.prog.blur, t, { src: tt, dir: [0, r / t.h] });
+        webgl.draw(gl, this.prog.blur, tt, { src: t, dir: [r / t.w, 0] });
+        webgl.draw(gl, this.prog.blur, t, { src: tt, dir: [0, r / t.h] });
       };
       blurT(this.b1, this.b1t, 1.5);
-      RL.draw(gl, this.prog.copy, this.b2, { src: this.b1 });
+      webgl.draw(gl, this.prog.copy, this.b2, { src: this.b1 });
       blurT(this.b2, this.b2t, 2.0); blurT(this.b2, this.b2t, 2.5);
-      RL.draw(gl, this.prog.copy, this.b3, { src: this.b2 });
+      webgl.draw(gl, this.prog.copy, this.b3, { src: this.b2 });
       blurT(this.b3, this.b3t, 2.0); blurT(this.b3, this.b3t, 3.0);
-    } else { RL.clear(gl, this.b1); RL.clear(gl, this.b2); RL.clear(gl, this.b3); }
+    } else { webgl.clear(gl, this.b1); webgl.clear(gl, this.b2); webgl.clear(gl, this.b3); }
     const imp = this.impactLeft > 0 && P.impact.enabled ? P.impact.amount * (this.impactLeft / P.impact.frames) : 0;
-    RL.draw(gl, this.prog.post, this.out, {
+    webgl.draw(gl, this.prog.post, this.out, {
       src: this.accum, g1: this.b1, g2: this.b2, g3: this.b3,
       glow, radius: po.glowRadius, halation: this.view.glowOff ? 0 : po.halation, grain: po.grain, chroma: po.chroma,
       exposure: po.exposure, contrast: po.contrast, saturation: po.saturation,
@@ -369,13 +370,13 @@ RL.Engine = class {
 
   bgColor() {
     const P = this.project;
-    return RL.hexToRgb(P.bg.mode === 'black' ? '#000000' : P.bg.mode === 'chroma' ? P.bg.chroma : P.bg.color);
+    return webgl.hexToRgb(P.bg.mode === 'black' ? '#000000' : P.bg.mode === 'chroma' ? P.bg.chroma : P.bg.color);
   }
 
   present() {
     const gl = this.gl, P = this.project;
     const transparent = P.bg.mode === 'transparent';
-    RL.draw(gl, this.prog.present, null, {
+    webgl.draw(gl, this.prog.present, null, {
       src: this.out, bg: this.bgColor(), mode: transparent && this.view.checker ? 1 : 0,
       gray: this.view.grayscale ? 1 : 0, flip: 0, unpremul: 0, res: [this.rw, this.rh], shift: this.view.seam ? 0.5 : 0,
     });
@@ -385,11 +386,11 @@ RL.Engine = class {
   readFrame(forceOpaque) {
     const gl = this.gl, P = this.project;
     const transparent = P.bg.mode === 'transparent' && !forceOpaque;
-    RL.draw(gl, this.prog.present, this.exportT, {
+    webgl.draw(gl, this.prog.present, this.exportT, {
       src: this.out, bg: this.bgColor(), mode: 0, gray: 0, flip: 1, unpremul: transparent ? 1 : 0, res: [this.rw, this.rh], shift: 0,
     });
     const px = new Uint8ClampedArray(this.rw * this.rh * 4);
-    RL.bindTarget(gl, this.exportT);
+    webgl.bindTarget(gl, this.exportT);
     gl.readPixels(0, 0, this.rw, this.rh, gl.RGBA, gl.UNSIGNED_BYTE, px);
     return px;
   }
@@ -404,7 +405,7 @@ RL.Engine = class {
       const rec = { src: meta.src, cols: meta.cols || 1, rows: meta.rows || 1, frames: meta.frames || 1, fps: meta.fps || 24, luma: !!meta.luma, kind: meta.kind, ready: false, tex: null };
       rec.promise = new Promise((res) => {
         const img = new Image();
-        img.onload = () => { rec.tex = RL.uploadImage(gl, img); rec.w = img.width; rec.h = img.height; rec.ready = true; res(); if (this.onAssetLoad) this.onAssetLoad(id); };
+        img.onload = () => { rec.tex = webgl.uploadImage(gl, img); rec.w = img.width; rec.h = img.height; rec.ready = true; res(); if (this.onAssetLoad) this.onAssetLoad(id); };
         img.onerror = () => { rec.ready = true; res(); };
         img.src = meta.src;
       });
@@ -414,7 +415,7 @@ RL.Engine = class {
   assetsReady() { this.syncAssets(); return Promise.all([...this.assets.values()].map(a => a.promise)); }
   asset(id) { const a = id && this.assets.get(id); return a && a.ready && a.tex ? a : null; }
   builtin(name) {
-    if (!this.builtins[name]) { const c = RL.drawBuiltin(name); if (c) this.builtins[name] = { tex: RL.uploadImage(this.gl, c.canvas), cols: c.cols || 1, rows: c.rows || 1, frames: c.frames || 1, w: c.canvas.width, h: c.canvas.height, luma: false, ready: true }; }
+    if (!this.builtins[name]) { const c = RL.drawBuiltin(name); if (c) this.builtins[name] = { tex: webgl.uploadImage(this.gl, c.canvas), cols: c.cols || 1, rows: c.rows || 1, frames: c.frames || 1, w: c.canvas.width, h: c.canvas.height, luma: false, ready: true }; }
     return this.builtins[name];
   }
 

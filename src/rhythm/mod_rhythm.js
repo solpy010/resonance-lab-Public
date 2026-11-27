@@ -1,5 +1,6 @@
 import { RL } from '../core/rl.js';
 import { FXN, FX_GLSL } from './fx_glsl.js';
+import * as webgl from '../gl.js';
 // RHYTHM — 리듬게임 인게임: 마커 시점에 노트가 심벌에 '닿고', 그때 이펙트가 터지며, 누적될수록 심벌이 화려해짐.
 // 전부 시간의 함수(무상태) → 어느 프레임을 다시 렌더해도 동일. 노트 도착/이펙트 시점은 각각 싱크 슬라이더로 조정.
 // 셰이더 이펙트 14종(6 카테고리) + 다중참여 이펙트(참여 인원·빈도·통일↔무분별·크기 편차·퍼짐 반경·시드).
@@ -123,7 +124,7 @@ RL.modules.rhythm = {
   create(engine, L) {
     const gl = engine.gl;
     let fxProg = null;
-    const getProg = () => fxProg || (fxProg = RL.program(gl, FX_GLSL));
+    const getProg = () => fxProg || (fxProg = webgl.program(gl, FX_GLSL));
     const B = { d0: new Float32Array(FXN * 4), d1: new Float32Array(FXN * 4), d2: new Float32Array(FXN * 4), c0: new Float32Array(FXN * 3), c1: new Float32Array(FXN * 3), c2: new Float32Array(FXN * 3) };
     const kv = (id, t, P) => (L.keys && L.keys[id] && L.keys[id].length) ? RL.evalKeys(L.keys[id], t, P[id]) : P[id];
     const inst = {
@@ -139,8 +140,8 @@ RL.modules.rhythm = {
           if (s < P.minStrength) return;
           if ((m.t - last) * 1000 < P.minGap) return;
           last = m.t;
-          const r = RL.rng(RL.hashSeed(engine.project.seed, L.id, 'hit', i));
-          out.push({ t: m.t, s, lane: r.int(Math.max(1, Math.round(P.lanes))), seed: RL.hashSeed(engine.project.seed, L.id, 'fx', i), i });
+          const r = webgl.rng(webgl.hashSeed(engine.project.seed, L.id, 'hit', i));
+          out.push({ t: m.t, s, lane: r.int(Math.max(1, Math.round(P.lanes))), seed: webgl.hashSeed(engine.project.seed, L.id, 'fx', i), i });
         });
         out.forEach((h, k) => h.k = k);
         this.cache = out; this.cacheKey = key; return out;
@@ -159,15 +160,15 @@ RL.modules.rhythm = {
       mainStyle(P, h, pool) {
         if (pool.length === 1) return pool[0];
         if (P.fxPick === 'cycle') return pool[h.k % pool.length];
-        return pool[RL.rng(RL.hashSeed(h.seed, 'style')).int(pool.length)];
+        return pool[webgl.rng(webgl.hashSeed(h.seed, 'style')).int(pool.length)];
       },
       colors(P, st, r) {
         let c;
         if (P.fxColorMode === 'palette' || P.fxColorMode === 'mono') {
-          const pal = (P.effectColors && P.effectColors.length ? P.effectColors : ['#ffffff']).map(RL.hexToRgb);
+          const pal = (P.effectColors && P.effectColors.length ? P.effectColors : ['#ffffff']).map(webgl.hexToRgb);
           if (P.fxColorMode === 'mono') { const b = pal[0]; c = [b.map(v => v + (1 - v) * 0.65), b, b.map(v => v * 0.7)]; }
           else { const o = Math.floor(r() * pal.length); c = [pal[o % pal.length], pal[(o + 1) % pal.length], pal[(o + 2) % pal.length]]; }
-        } else c = FX_STYLES[st].pal.map(RL.hexToRgb);
+        } else c = FX_STYLES[st].pal.map(webgl.hexToRgb);
         const hue = (P.fxHue || 0) + (r() - 0.5) * 120 * (P.fxColorVar || 0);
         return c.map(x => hueRot(x, hue));
       },
@@ -184,7 +185,7 @@ RL.modules.rhythm = {
         for (const h of hits) {
           const te = h.t + eOff, age = (T - te) / life;
           if (age < 0 || age >= 1) continue;
-          const st = this.mainStyle(P, h, pool), r = RL.rng(RL.hashSeed(h.seed, 'main'));
+          const st = this.mainStyle(P, h, pool), r = webgl.rng(webgl.hashSeed(h.seed, 'main'));
           const size = P.effectSize * (1 + P.energyScale * energyAt(te)) * (0.7 + 0.3 * Math.min(1.5, h.s));
           syms.forEach((sx, si) => {
             const [x, y, R] = this.fit(P, sx * W + (r() - 0.5) * 0.02 * H, (hitY - P.hitY * 0.5) * H, size * 0.5);
@@ -223,11 +224,11 @@ RL.modules.rhythm = {
             const te = h.t + eOff;
             if (te > T || te + jMax + lifeC < T) continue;
             const nC = Math.max(0, Math.round(kv('crowd', h.t, P))), rate = kv('crowdRate', h.t, P);
-            const mainSt = this.mainStyle(P, h, pool), hr = RL.rng(RL.hashSeed(seed, L.id, 'hit', h.i));
+            const mainSt = this.mainStyle(P, h, pool), hr = webgl.rng(webgl.hashSeed(seed, L.id, 'hit', h.i));
             const hitSeed = hr(), hitRot = hr() * 6.2832;
             syms.forEach((sx, si) => {
               for (let j = 0; j < nC; j++) {
-                const r = RL.rng(RL.hashSeed(seed, L.id, 'c', h.i, j, si));
+                const r = webgl.rng(webgl.hashSeed(seed, L.id, 'c', h.i, j, si));
                 if (r() >= rate) continue;
                 spawn(r, te + (1 - sync) * r() * jMax, j, nC, mainSt, hitSeed, hitRot, sx, si);
               }
@@ -238,11 +239,11 @@ RL.modules.rhythm = {
             const tw = w * wnd; if (tw + wnd < 0) continue;
             const nC = Math.max(0, Math.round(kv('crowd', tw, P))), fr = kv('crowdFree', tw, P) * wnd;
             if (fr <= 0) continue;
-            const wr = RL.rng(RL.hashSeed(seed, L.id, 'w', w));
+            const wr = webgl.rng(webgl.hashSeed(seed, L.id, 'w', w));
             const mainSt = pool[wr.int(pool.length)], wSeed = wr(), wRot = wr() * 6.2832;
             syms.forEach((sx, si) => {
               for (let j = 0; j < nC; j++) {
-                const r = RL.rng(RL.hashSeed(seed, L.id, 'f', w, j, si));
+                const r = webgl.rng(webgl.hashSeed(seed, L.id, 'f', w, j, si));
                 if (r() >= fr) continue;
                 spawn(r, tw + r() * wnd, j, nC, mainSt, wSeed, wRot, sx, si);
               }
@@ -267,11 +268,11 @@ RL.modules.rhythm = {
             B.d2.set([spin, dens, 0, 0], k * 4);
             B.c0.set(e.cols[0], k * 3); B.c1.set(e.cols[1], k * 3); B.c2.set(e.cols[2], k * 3);
           }
-          RL.draw(gl, prog, target, { N: n, THK: P.fxThick ?? 1, GLW: P.fxGlow ?? 1, RES: [W, H], d0: B.d0, d1: B.d1, d2: B.d2, c0: B.c0, c1: B.c1, c2: B.c2 }, P.fxBlend || 'add');
+          webgl.draw(gl, prog, target, { N: n, THK: P.fxThick ?? 1, GLW: P.fxGlow ?? 1, RES: [W, H], d0: B.d0, d1: B.d1, d2: B.d2, c0: B.c0, c1: B.c1, c2: B.c2 }, P.fxBlend || 'add');
         }
       },
       render(target, P) {
-        RL.clear(gl, target);
+        webgl.clear(gl, target);
         const T = this.now, A = engine.aspect, docH = engine.docH;
         const hits = this.hits(P), syms = this.symbols(P);
         const nOff = P.noteOffset / 1000, eOff = P.effectOffset / 1000;
@@ -281,7 +282,7 @@ RL.modules.rhythm = {
         E = Math.min(1, Math.max(0, E));
         const energyAt = (te) => { let Eh = P.energyBase; for (const g of hits) { const tg = g.t + eOff; if (tg < te) Eh += P.energyGain * g.s * Math.exp(-(te - tg) * P.energyDecay); else break; } return Math.min(1, Eh); };
         const sb = engine.sprites, sg = engine.segs, tb = engine.texb;
-        const nc = RL.hexToRgb(P.noteColor), fxCols = (P.effectColors && P.effectColors.length ? P.effectColors : ['#ffffff']).map(RL.hexToRgb);
+        const nc = webgl.hexToRgb(P.noteColor), fxCols = (P.effectColors && P.effectColors.length ? P.effectColors : ['#ffffff']).map(webgl.hexToRgb);
         const lanes = Math.max(1, Math.round(P.lanes));
         const symY = P.symbolY, hitY = symY + P.hitY;
         const laneX = (sx, lane, p) => { const off = (lane - (lanes - 1) / 2) * P.laneSpread / A; return sx + off * (1 - P.converge * p); };
@@ -311,7 +312,7 @@ RL.modules.rhythm = {
                 }
               }
               if (noteAsset) {
-                const fr = noteAsset.frames > 1 ? Math.floor(T * (noteAsset.fps || 24)) : 0, [u0, v0, u1, v1] = RL.atlasUV(noteAsset, fr);
+                const fr = noteAsset.frames > 1 ? Math.floor(T * (noteAsset.fps || 24)) : 0, [u0, v0, u1, v1] = webgl.atlasUV(noteAsset, fr);
                 const asp = (noteAsset.w / noteAsset.cols) / (noteAsset.h / noteAsset.rows);
                 tb.push(x, y, P.noteSize * asp, P.noteSize, 0, 1, 1, 1, a, u0, v0, u1, v1, noteAsset.luma);
               } else {
@@ -328,7 +329,7 @@ RL.modules.rhythm = {
         // ---------- symbol
         if (P.showSymbol) {
           const a0 = engine.asset(P.symbolAsset);
-          const base = RL.hexToRgb(P.symbolColor), hot = RL.hexToRgb(P.symbolHot);
+          const base = webgl.hexToRgb(P.symbolColor), hot = webgl.hexToRgb(P.symbolHot);
           const col = [base[0] + (hot[0] - base[0]) * E, base[1] + (hot[1] - base[1]) * E, base[2] + (hot[2] - base[2]) * E];
           const kick = 1 + P.pulse * Math.exp(-lastAge * 9) * (0.6 + E);
           for (const sx of syms) {
@@ -344,14 +345,14 @@ RL.modules.rhythm = {
             // orbit sparkles
             const nO = Math.round(P.orbit * E);
             for (let k = 0; k < nO; k++) {
-              const r = RL.rng(RL.hashSeed(L.id, 'orb', k)); const sp = 0.3 + r() * 0.9, rr = S * (0.42 + r() * 0.38), ang = r() * 6.283 + T * sp * (r() < 0.5 ? -1 : 1);
+              const r = webgl.rng(webgl.hashSeed(L.id, 'orb', k)); const sp = 0.3 + r() * 0.9, rr = S * (0.42 + r() * 0.38), ang = r() * 6.283 + T * sp * (r() < 0.5 ? -1 : 1);
               const c = fxCols[k % fxCols.length], tw = 0.5 + 0.5 * Math.sin(T * (3 + r() * 5) + k);
               sb.push(sx + Math.cos(ang) * rr / docH / A, symY + Math.sin(ang) * rr * 0.62 / docH, S * 0.018 * (0.6 + r()), S * 0.018 * (0.6 + r()), 0, c[0], c[1], c[2], tw * E * P.intensity, 1, 0.5, 0.8, 0);
             }
             sb.flush(target, engine.docW, 'add');
             tb.begin();
             if (a0) {
-              const fr = a0.frames > 1 ? Math.floor(T * (a0.fps || 24)) : 0, [u0, v0, u1, v1] = RL.atlasUV(a0, fr);
+              const fr = a0.frames > 1 ? Math.floor(T * (a0.fps || 24)) : 0, [u0, v0, u1, v1] = webgl.atlasUV(a0, fr);
               const asp = (a0.w / a0.cols) / (a0.h / a0.rows);
               const tint = P.tintAsset, tc = [1 + (col[0] - 1) * tint, 1 + (col[1] - 1) * tint, 1 + (col[2] - 1) * tint];
               tb.push(sx, symY, S * asp * 1.12, S * 1.12, 0, col[0], col[1], col[2], P.symbolGlow * (0.15 + E * 0.6) * P.intensity, u0, v0, u1, v1, a0.luma);
@@ -381,7 +382,7 @@ RL.modules.rhythm = {
               const te = h.t + eOff, age = (T - te) / P.effectLife;
               if (age < 0 || age > 1) continue;
               const Eh = energyAt(te);
-              const r = RL.rng(h.seed);
+              const r = webgl.rng(h.seed);
               let types = [P.effectType];
               if (P.effectType === 'random') { const all = RL.FX_TYPES; types = [all[r.int(all.length)], all[r.int(all.length)], 'flash']; }
               for (const sx of syms) {

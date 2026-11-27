@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // RESONANCE LAB — application UI
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -177,7 +178,7 @@ RL.App = class {
     for (const b of $$('#bgMode button')) b.addEventListener('click', () => { P().bg.mode = b.dataset.v; this.renderBg(); this.needsRender = true; this.save(); });
     $('#bgColor').addEventListener('input', e => { P().bg.color = e.target.value; this.renderBg(); this.needsRender = true; this.save(); });
     $('#bgHex').addEventListener('change', e => { let v = e.target.value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { P().bg.color = v.toLowerCase(); this.renderBg(); this.needsRender = true; this.save(); } });
-    const hsv = () => { const c = RL.hsvToRgb(+$('#bgH').value, +$('#bgS').value, +$('#bgV').value); P().bg.color = RL.rgbToHex(...c); this.renderBg(true); this.needsRender = true; this.save(); };
+    const hsv = () => { const c = webgl.hsvToRgb(+$('#bgH').value, +$('#bgS').value, +$('#bgV').value); P().bg.color = webgl.rgbToHex(...c); this.renderBg(true); this.needsRender = true; this.save(); };
     ['#bgH', '#bgS', '#bgV'].forEach(s => $(s).addEventListener('input', hsv));
     for (const b of $$('#chromaPreset button')) b.addEventListener('click', () => { P().bg.chroma = b.dataset.v; this.renderBg(); this.needsRender = true; this.save(); });
     $('#chromaColor').addEventListener('input', e => { P().bg.chroma = e.target.value; this.renderBg(); this.needsRender = true; this.save(); });
@@ -443,7 +444,7 @@ RL.App = class {
     $('#bgChroma').classList.toggle('hidden', bg.mode !== 'chroma');
     $('#bgNote').classList.toggle('hidden', bg.mode !== 'transparent');
     $('#bgColor').value = bg.color; $('#bgHex').value = bg.color;
-    if (!fromHsv) { const [hh, s, v] = RL.rgbToHsv(...RL.hexToRgb(bg.color)); $('#bgH').value = hh; $('#bgS').value = s; $('#bgV').value = v; }
+    if (!fromHsv) { const [hh, s, v] = webgl.rgbToHsv(...webgl.hexToRgb(bg.color)); $('#bgH').value = hh; $('#bgS').value = s; $('#bgV').value = v; }
     $('#bgHv').textContent = Math.round($('#bgH').value); $('#bgSv').textContent = Math.round($('#bgS').value); $('#bgVv').textContent = Math.round($('#bgV').value);
     $('#chromaColor').value = bg.chroma;
     for (const b of $$('#chromaPreset button')) b.classList.toggle('on', b.dataset.v === bg.chroma);

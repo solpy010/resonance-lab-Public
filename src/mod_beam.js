@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // BEAM — 가상 조명 빔 + 볼류메트릭 안개 산란 (빔 하강·부채꼴 확산·점멸)
 
 RL.modules.beam = {
@@ -30,7 +31,7 @@ RL.modules.beam = {
   ],
   create(engine, L) {
     const gl = engine.gl;
-    const prog = RL.program(gl, RL.GLSL_NOISE + `
+    const prog = webgl.program(gl, webgl.GLSL_NOISE + `
       uniform vec4 bm[32]; uniform vec4 bc[32]; uniform float nb, aspect, width, spread, soft, falloff, lenL, fog, fogScale, T, hot, fill, wrap;
       uniform vec3 fillC;
       void main(){
@@ -68,9 +69,9 @@ RL.modules.beam = {
         this.flash = this.flash.filter(f => f.age < P.flashDecay * 5);
       },
       render(target, P) {
-        RL.clear(gl, target);
+        webgl.clear(gl, target);
         const n = engine.project.faces, faces = RL.parseFaces(P.sources, n);
-        const bm = new Float32Array(128), bc = new Float32Array(128), cols = (P.colors || ['#ffffff']).map(RL.hexToRgb);
+        const bm = new Float32Array(128), bc = new Float32Array(128), cols = (P.colors || ['#ffffff']).map(webgl.hexToRgb);
         let k = 0; const T = this.time;
         const per = Math.round(P.perSource);
         faces.forEach((f, si) => {
@@ -86,9 +87,9 @@ RL.modules.beam = {
             k++;
           }
         });
-        RL.draw(gl, prog, target, {
+        webgl.draw(gl, prog, target, {
           bm, bc, nb: k, aspect: engine.aspect, width: P.width, spread: P.spread, soft: P.softness, falloff: P.falloff,
-          lenL: P.length, fog: P.fog, fogScale: P.fogScale, T: T * P.fogSpeed, hot: P.hotspot, fill: P.fill, fillC: RL.hexToRgb(P.fillColor), wrap: engine.project.wrap ? 1 : 0,
+          lenL: P.length, fog: P.fog, fogScale: P.fogScale, T: T * P.fogSpeed, hot: P.hotspot, fill: P.fill, fillC: webgl.hexToRgb(P.fillColor), wrap: engine.project.wrap ? 1 : 0,
         });
       },
       dispose() {},

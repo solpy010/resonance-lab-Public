@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // Shared hit/pop effect renderer (stateless: everything is a function of the effect's age) — used by 리듬게임 / 오브젝트 유영
 
 RL.FX_TYPES = ['ring', 'rays', 'shards', 'sparks', 'flash'];
@@ -9,7 +10,7 @@ RL.easeOutCubic = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 RL.drawBurst = function (engine, e) {
   const sb = engine.sprites, sg = engine.segs, A = engine.aspect, docW = engine.docW, docH = engine.docH;
   const a = e.age01; if (a < 0 || a > 1) return;
-  const r = RL.rng(e.seed), pick = () => e.colors[r.int(e.colors.length)];
+  const r = webgl.rng(e.seed), pick = () => e.colors[r.int(e.colors.length)];
   const k = e.intensity ?? 1, S = e.size;
   const fade = Math.pow(1 - a, 1.4) * k;
   const px = (v) => v / docH;                      // px → normalized height units
@@ -54,7 +55,7 @@ RL.drawBurst = function (engine, e) {
 RL.drawImageBurst = function (engine, asset, e) {
   const a = e.age01; if (!asset || a < 0 || a > 1) return;
   const frame = asset.frames > 1 ? Math.min(asset.frames - 1, Math.floor(a * asset.frames)) : 0;
-  const [u0, v0, u1, v1] = RL.atlasUV(asset, frame);
+  const [u0, v0, u1, v1] = webgl.atlasUV(asset, frame);
   const asp = (asset.w / asset.cols) / (asset.h / asset.rows);
   const sz = e.size * (0.6 + 0.6 * RL.easeOutCubic(a));
   engine.texb.push(e.x, e.y, sz * asp, sz, e.rot || 0, 1, 1, 1, (asset.frames > 1 ? 1 : Math.pow(1 - a, 1.2)) * (e.intensity ?? 1), u0, v0, u1, v1, asset.luma);

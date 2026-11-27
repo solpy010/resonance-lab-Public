@@ -2,19 +2,19 @@
 import { RL } from './core/rl.js';
 // RESONANCE LAB — WebGL2 helpers (clean-room implementation)
 
-RL.VS = `#version 300 es
+export const VS = `#version 300 es
 layout(location=0) in vec2 p;
 out vec2 uv;
 void main(){ uv = p*0.5+0.5; gl_Position = vec4(p,0.0,1.0); }`;
 
-RL.HEAD = `#version 300 es
+export const HEAD = `#version 300 es
 precision highp float;
 precision highp sampler2D;
 in vec2 uv;
 out vec4 frag;
 `;
 
-RL.createGL = function (canvas) {
+export const createGL = function (canvas) {
   const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: true });
   if (!gl) throw new Error('WebGL2를 사용할 수 없습니다. Chrome 또는 Edge 최신 버전에서 열어 주세요.');
   if (!gl.getExtension('EXT_color_buffer_float')) throw new Error('이 GPU는 부동소수 렌더타깃(EXT_color_buffer_float)을 지원하지 않습니다.');
@@ -49,10 +49,10 @@ function compile(gl, type, src) {
   return s;
 }
 
-RL.program = function (gl, fsBody, vsSrc) {
+export const program = function (gl, fsBody, vsSrc) {
   const p = gl.createProgram();
-  gl.attachShader(p, compile(gl, gl.VERTEX_SHADER, vsSrc || RL.VS));
-  gl.attachShader(p, compile(gl, gl.FRAGMENT_SHADER, vsSrc ? fsBody : RL.HEAD + fsBody));
+  gl.attachShader(p, compile(gl, gl.VERTEX_SHADER, vsSrc || VS));
+  gl.attachShader(p, compile(gl, gl.FRAGMENT_SHADER, vsSrc ? fsBody : HEAD + fsBody));
   gl.bindAttribLocation(p, 0, 'p');
   gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('프로그램 링크 실패: ' + gl.getProgramInfoLog(p));
@@ -66,7 +66,7 @@ RL.program = function (gl, fsBody, vsSrc) {
   return { p, uniforms };
 };
 
-RL.setUniforms = function (gl, prog, u) {
+export const setUniforms = function (gl, prog, u) {
   let unit = 0;
   for (const k in u) {
     const info = prog.uniforms[k];
@@ -89,7 +89,7 @@ RL.setUniforms = function (gl, prog, u) {
   }
 };
 
-RL.target = function (gl, w, h, opts) {
+export const target = function (gl, w, h, opts) {
   opts = opts || {};
   w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
   const fmt = opts.format || 'rgba16f';
@@ -112,14 +112,14 @@ RL.target = function (gl, w, h, opts) {
   return { tex, fbo, w, h, texel: [1 / w, 1 / h] };
 };
 
-RL.pair = function (gl, w, h, opts) {
-  const o = { a: RL.target(gl, w, h, opts), b: RL.target(gl, w, h, opts) };
+export const pair = function (gl, w, h, opts) {
+  const o = { a: target(gl, w, h, opts), b: target(gl, w, h, opts) };
   o.swap = function () { const t = o.a; o.a = o.b; o.b = t; };
   o.w = o.a.w; o.h = o.a.h; o.texel = o.a.texel;
   return o;
 };
 
-RL.uploadImage = function (gl, img) {
+export const uploadImage = function (gl, img) {
   const tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -134,50 +134,50 @@ RL.uploadImage = function (gl, img) {
   return tex;
 };
 // uv rect for frame k of an atlas (cols×rows, row 0 = top of the image)
-RL.atlasUV = function (a, k) {
+export const atlasUV = function (a, k) {
   const n = Math.max(1, a.frames || 1); k = ((Math.floor(k) % n) + n) % n;
   const c = k % a.cols, r = Math.floor(k / a.cols);
   return [c / a.cols, 1 - (r + 1) / a.rows, (c + 1) / a.cols, 1 - r / a.rows];
 };
 
-RL.setWrap = function (gl, t, repeat) {
+export const setWrap = function (gl, t, repeat) {
   if (!t) return;
-  if (t.a) { RL.setWrap(gl, t.a, repeat); RL.setWrap(gl, t.b, repeat); return; }
+  if (t.a) { setWrap(gl, t.a, repeat); setWrap(gl, t.b, repeat); return; }
   if (t.repeat === repeat) return;
   gl.bindTexture(gl.TEXTURE_2D, t.tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE);
   t.repeat = repeat;
 };
 
-RL.freeTarget = function (gl, t) {
+export const freeTarget = function (gl, t) {
   if (!t) return;
-  if (t.a) { RL.freeTarget(gl, t.a); RL.freeTarget(gl, t.b); return; }
+  if (t.a) { freeTarget(gl, t.a); freeTarget(gl, t.b); return; }
   gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo);
 };
 
-RL.bindTarget = function (gl, t) {
+export const bindTarget = function (gl, t) {
   if (t) { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.viewport(0, 0, t.w, t.h); }
   else { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); }
 };
 
-RL.clear = function (gl, t, c) {
-  RL.bindTarget(gl, t);
+export const clear = function (gl, t, c) {
+  bindTarget(gl, t);
   c = c || [0, 0, 0, 0];
   gl.clearColor(c[0], c[1], c[2], c[3]);
   gl.clear(gl.COLOR_BUFFER_BIT);
 };
 
-RL.draw = function (gl, prog, t, u, blend) {
-  RL.bindTarget(gl, t);
+export const draw = function (gl, prog, t, u, blend) {
+  bindTarget(gl, t);
   gl.useProgram(prog.p);
-  RL.setUniforms(gl, prog, u || {});
-  RL.setBlend(gl, blend);
+  setUniforms(gl, prog, u || {});
+  setBlend(gl, blend);
   gl.bindVertexArray(gl._quad);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   gl.bindVertexArray(null);
 };
 
-RL.setBlend = function (gl, mode) {
+export const setBlend = function (gl, mode) {
   if (!mode) { gl.disable(gl.BLEND); return; }
   gl.enable(gl.BLEND);
   gl.blendEquation(gl.FUNC_ADD);
@@ -188,7 +188,7 @@ RL.setBlend = function (gl, mode) {
 };
 
 // ---------- deterministic random ----------
-RL.rng = function (seed) {
+export const rng = function (seed) {
   let a = (seed >>> 0) || 1;
   const f = function () {
     a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -200,7 +200,7 @@ RL.rng = function (seed) {
   f.int = (n) => Math.floor(f() * n);
   return f;
 };
-RL.hashSeed = function (...parts) {
+export const hashSeed = function (...parts) {
   let h = 2166136261;
   for (const p of parts) {
     const s = String(p);
@@ -210,9 +210,9 @@ RL.hashSeed = function (...parts) {
 };
 
 // value noise + curl (deterministic CPU)
-RL.noise = (function () {
+export const noise = (function () {
   const P = new Uint8Array(512);
-  const r = RL.rng(1337);
+  const r = rng(1337);
   const perm = Array.from({ length: 256 }, (_, i) => i);
   for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
   for (let i = 0; i < 512; i++) P[i] = perm[i & 255];
@@ -241,7 +241,7 @@ RL.noise = (function () {
 })();
 
 // GLSL noise library (hash-based, deterministic)
-RL.GLSL_NOISE = `
+export const GLSL_NOISE = `
 float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
 float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.-2.*f);
   return mix(mix(hash12(i),hash12(i+vec2(1,0)),u.x), mix(hash12(i+vec2(0,1)),hash12(i+vec2(1,1)),u.x), u.y); }
@@ -255,17 +255,17 @@ float fbmP(vec2 p, float per){ float s=0., a=.5; for(int i=0;i<5;i++){ s+=a*vnoi
 float wrapDx(float dx, float on){ return on > 0.5 ? dx - floor(dx + 0.5) : dx; }
 `;
 
-RL.hexToRgb = function (hex) {
+export const hexToRgb = function (hex) {
   hex = String(hex || '#000000').replace('#', '');
   if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
   const n = parseInt(hex, 16) || 0;
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 };
-RL.rgbToHex = function (r, g, b) {
+export const rgbToHex = function (r, g, b) {
   const t = x => Math.max(0, Math.min(255, Math.round(x * 255))).toString(16).padStart(2, '0');
   return '#' + t(r) + t(g) + t(b);
 };
-RL.hsvToRgb = function (h, s, v) {
+export const hsvToRgb = function (h, s, v) {
   h = ((h % 360) + 360) % 360 / 60; s /= 100; v /= 100;
   const c = v * s, x = c * (1 - Math.abs((h % 2) - 1)), m = v - c;
   let r = 0, g = 0, b = 0;
@@ -273,16 +273,16 @@ RL.hsvToRgb = function (h, s, v) {
   else if (h < 4) [r, g, b] = [0, x, c]; else if (h < 5) [r, g, b] = [x, 0, c]; else [r, g, b] = [c, 0, x];
   return [r + m, g + m, b + m];
 };
-RL.rgbToHsv = function (r, g, b) {
+export const rgbToHsv = function (r, g, b) {
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
   let h = 0;
   if (d) { if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h *= 60; }
   return [(h + 360) % 360, mx ? d / mx * 100 : 0, mx * 100];
 };
-RL.srgbToLin = c => c.map(x => x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4));
+export const srgbToLin = c => c.map(x => x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4));
 
 // easing
-RL.ease = {
+export const ease = {
   linear: t => t,
   expoOut: t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t),
   quintOut: t => 1 - Math.pow(1 - t, 5),
@@ -290,3 +290,6 @@ RL.ease = {
   inOut: t => t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2,
   hold: t => 0,
 };
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { VS, HEAD, createGL, program, setUniforms, target, pair, uploadImage, atlasUV, setWrap, freeTarget, bindTarget, clear, draw, setBlend, rng, hashSeed, noise, GLSL_NOISE, hexToRgb, rgbToHex, hsvToRgb, rgbToHsv, srgbToLin, ease });

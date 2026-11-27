@@ -1,5 +1,6 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as webgl from './gl.js';
 // WAVE — 2D 파동 방정식. 경계는 '흡수'(열린 공간)라 벽 반사 없이 퍼져 사라진다.
 // 표현: 등고선 링 / 소프트 글로우 링 / 간섭 광망 / 마루 빛 / 입체 음영.
 
@@ -40,7 +41,7 @@ RL.modules.wave = {
   create(engine, L) {
     const gl = engine.gl;
     // --- propagation step: open (absorbing) boundaries, no wall / face reflection ---
-    const step = RL.program(gl, `
+    const step = webgl.program(gl, `
       uniform sampler2D st; uniform vec2 px; uniform float c2, damp, wrap, padU, padV;
       void main(){
         vec4 S = texture(st, uv); float h = S.r, hp = S.g;
@@ -56,7 +57,7 @@ RL.modules.wave = {
         if (wrap < 0.5 && padU > 0.0) { float eU = min(uv.x, 1.0-uv.x); sp = max(sp, 1.0 - clamp(eU / padU, 0.0, 1.0)); }
         hn *= 1.0 - 0.6 * sp * sp;
         frag = vec4(hn, h, 0.0, 1.0); }`);
-    const inject = RL.program(gl, RL.GLSL_NOISE + `
+    const inject = webgl.program(gl, webgl.GLSL_NOISE + `
       uniform sampler2D st; uniform vec4 imp[16]; uniform float nImp, shape, aspect, wrap, uScale, vScale;
       void main(){
         vec4 S = texture(st, uv); float add = 0.0;
@@ -68,7 +69,7 @@ RL.modules.wave = {
           add += shape > 0.5 ? q.w * exp(-kr*kr) : q.w * exp(-kp*kp); }
         frag = vec4(S.r + add, S.g + add, 0.0, 1.0); }`);
     // --- render ---
-    const draw = RL.program(gl, `
+    const draw = webgl.program(gl, `
       uniform sampler2D st; uniform vec2 px; uniform float mode, bands, lw, soft, core, gain, thr, intensity, padU, padV;
       uniform vec3 cA, cB, cC;
       vec2 toSim(vec2 v){ return vec2(padU + v.x*(1.0-2.0*padU), padV + v.y*(1.0-2.0*padV)); }
@@ -122,7 +123,7 @@ RL.modules.wave = {
         }
         a = clamp(a, 0.0, 1.0);
         frag = vec4(col * a * intensity, a * min(intensity, 1.0)); }`);
-    const sweepDraw = RL.program(gl, `
+    const sweepDraw = webgl.program(gl, `
       uniform float ys[8], ss[8]; uniform float nS, thick, intensity; uniform vec3 cA, cC;
       void main(){
         float a = 0.0;
@@ -130,7 +131,7 @@ RL.modules.wave = {
         a = clamp(a, 0.0, 1.3);
         vec3 col = mix(cA, cC, clamp(a, 0.0, 1.0));
         frag = vec4(col * a * intensity, min(a, 1.0) * min(intensity, 1.0)); }`);
-    const orbDraw = RL.program(gl, `
+    const orbDraw = webgl.program(gl, `
       uniform vec4 em[6]; uniform float nE, aspect, time, density, speed, frontSpeed, sharp, decay,
         swirl, arms, falloff, gain, sustain, sparkle, holeR, frontTight, trailFade, intensity;
       uniform vec3 cDeep, cBright, cCore;
@@ -178,16 +179,16 @@ RL.modules.wave = {
         this.padFracV = PADV / Vtot; this.padFracU = PADU / Utot;
         const gh = Math.round(P.quality * Vtot), gw = Math.min(gl._maxTex, Math.round(P.quality * A * Utot));
         if (S && S.w === gw && S.h === gh && S._wrap === wrap) return;
-        RL.freeTarget(gl, S); S = RL.pair(gl, gw, gh, { nearest: false }); S._wrap = wrap;
-        RL.clear(gl, S.a); RL.clear(gl, S.b);
+        webgl.freeTarget(gl, S); S = webgl.pair(gl, gw, gh, { nearest: false }); S._wrap = wrap;
+        webgl.clear(gl, S.a); webgl.clear(gl, S.b);
       },
       toSim(x, y) { return [this.padFracU + x * (1 - 2 * this.padFracU), this.padFracV + y * (1 - 2 * this.padFracV)]; },
-      reset(rng, P) { this.rng = rng; S && (RL.freeTarget(gl, S), S = null); this.alloc(P); this.pending = []; this.sweeps = []; this.sweepAnim = []; this.emits = []; this.time = 0; this.nextAuto = P.autoEvery > 0 ? 0.3 : Infinity; this.lastSweepT = null; },
+      reset(rng, P) { this.rng = rng; S && (webgl.freeTarget(gl, S), S = null); this.alloc(P); this.pending = []; this.sweeps = []; this.sweepAnim = []; this.emits = []; this.time = 0; this.nextAuto = P.autoEvery > 0 ? 0.3 : Infinity; this.lastSweepT = null; },
       step(dt, t, evs, P) {
         const glow = P.mode === 'glow';
         if (!glow) this.alloc(P);
         const n = engine.project.faces, W = engine.project.wrap ? 1 : 0;
-        if (!glow) RL.setWrap(gl, S, !!W);
+        if (!glow) webgl.setWrap(gl, S, !!W);
         for (const e of evs) {
           this.emits.push({ x: e.u, y: P.eventY + ((e.v ?? 0.5) - 0.5) * 0.6, t0: this.time, s: e.s });
           if (P.sweepOn) { if (this.lastSweepT !== e.t) { this.sweeps.push({ s: e.s }); this.lastSweepT = e.t; } }
@@ -211,7 +212,7 @@ RL.modules.wave = {
           {
             const arr = new Float32Array(64); const k = Math.min(16, this.pending.length);
             for (let i = 0; i < k; i++) { const p = this.pending[i]; const sp = this.toSim(p.x, p.y); arr.set([sp[0], sp[1], P.radius, P.amp * p.s * 0.6], i * 4); }
-            RL.draw(gl, inject, S.b, { st: S.a, imp: arr, nImp: k, shape: shapeId, aspect: engine.aspect, wrap: W, uScale: this.uScale, vScale: this.vScale }); S.swap();
+            webgl.draw(gl, inject, S.b, { st: S.a, imp: arr, nImp: k, shape: shapeId, aspect: engine.aspect, wrap: W, uScale: this.uScale, vScale: this.vScale }); S.swap();
           }
           this.pending = [];
         }
@@ -222,15 +223,15 @@ RL.modules.wave = {
           const faces = RL.parseFaces(P.oscFaces, n); const arr = new Float32Array(64); let k = 0;
           const v = Math.sin(this.time * Math.PI * 2 * P.oscFreq) * P.oscAmp * 0.04 * dt * 30;
           for (const f of faces) if (k < 16) { const sp = this.toSim((f + 0.5) / n, P.eventY); arr.set([sp[0], sp[1], P.radius * 0.6, v], (k++) * 4); }
-          if (k) { RL.draw(gl, inject, S.b, { st: S.a, imp: arr, nImp: k, shape: 0, aspect: engine.aspect, wrap: W, uScale: this.uScale, vScale: this.vScale }); S.swap(); }
+          if (k) { webgl.draw(gl, inject, S.b, { st: S.a, imp: arr, nImp: k, shape: 0, aspect: engine.aspect, wrap: W, uScale: this.uScale, vScale: this.vScale }); S.swap(); }
         }
         for (let i = 0; i < sub; i++) {
-          RL.draw(gl, step, S.b, { st: S.a, px: S.texel, c2, damp, wrap: W, padU: this.padFracU, padV: this.padFracV });
+          webgl.draw(gl, step, S.b, { st: S.a, px: S.texel, c2, damp, wrap: W, padU: this.padFracU, padV: this.padFracV });
           S.swap();
         }
       },
       render(target, P) {
-        RL.clear(gl, target);
+        webgl.clear(gl, target);
         if (P.mode === 'glow') {
           const n = engine.project.faces, list = [];
           const homes = RL.parseFaces(P.orbFaces, n);
@@ -239,38 +240,38 @@ RL.modules.wave = {
           const use = list.slice(-6), em = new Float32Array(24); let k = 0;
           for (const o of use) { em.set([o.x, o.y, o.age, o.s], k * 4); k++; }
           if (k === 0 && (P.sustain || 0) > 0.01) { em.set([0.5, P.eventY, 0, 1], 0); k = 1; }   // show something when sustained & no beats yet
-          RL.draw(gl, orbDraw, target, {
+          webgl.draw(gl, orbDraw, target, {
             em, nE: k, aspect: engine.aspect, time: this.time,
             density: Math.max(1.5, P.bands * 2.2), speed: P.waveSpeed * 0.6, frontSpeed: P.waveSpeed * 0.35,
             sharp: Math.max(0.6, 6.0 * (1 - (P.softness ?? 0.5))), decay: P.ringDecay ?? 1.6,
             swirl: P.swirl ?? 0.4, arms: Math.round(P.swirlArms ?? 5), falloff: 1.1 / (P.spread || 1.2),
             holeR: 0.03 + 0.05 * (P.spread || 1.2), frontTight: 120.0, trailFade: 6.0,
             gain: Math.max(0.3, P.gain * 0.09), sustain: P.sustain ?? 0.4, sparkle: P.sparkle ?? 0.3, intensity: P.intensity,
-            cDeep: RL.hexToRgb(P.colorB), cBright: RL.hexToRgb(P.colorA), cCore: RL.hexToRgb(P.coreColor || '#eafcff'),
+            cDeep: webgl.hexToRgb(P.colorB), cBright: webgl.hexToRgb(P.colorA), cCore: webgl.hexToRgb(P.coreColor || '#eafcff'),
           }, 'over');
           if (this.sweepAnim && this.sweepAnim.length) {
             const ys = new Float32Array(8), ss = new Float32Array(8); let j = 0;
             for (const a of this.sweepAnim) { if (j >= 8) break; ys[j] = 0.06 + 0.9 * a.p; ss[j] = Math.max(0, 1 - Math.max(0, a.p - 1) * 5) * a.s; j++; }
-            RL.draw(gl, sweepDraw, target, { ys, ss, nS: j, thick: 0.006 + 0.004 * (P.lineWidth / 1.4), intensity: P.intensity, cA: RL.hexToRgb(P.colorA), cC: RL.hexToRgb(P.coreColor || '#eafcff') }, 'add');
+            webgl.draw(gl, sweepDraw, target, { ys, ss, nS: j, thick: 0.006 + 0.004 * (P.lineWidth / 1.4), intensity: P.intensity, cA: webgl.hexToRgb(P.colorA), cC: webgl.hexToRgb(P.coreColor || '#eafcff') }, 'add');
           }
           return;
         }
-        RL.setWrap(gl, S, !!engine.project.wrap);
+        webgl.setWrap(gl, S, !!engine.project.wrap);
         const m = { contour: 0, ripple: 1, caustic: 2, crest: 3, relief: 4 }[P.mode] ?? 1;
-        RL.draw(gl, draw, target, {
+        webgl.draw(gl, draw, target, {
           st: S.a, px: S.texel, mode: m, bands: P.bands, lw: P.lineWidth, soft: P.softness ?? 0.5, core: P.core ?? 0,
           gain: P.gain, thr: P.threshold, intensity: P.intensity, padU: this.padFracU, padV: this.padFracV,
-          cA: RL.hexToRgb(P.colorA), cB: RL.hexToRgb(P.colorB), cC: RL.hexToRgb(P.coreColor || '#eafcff'),
+          cA: webgl.hexToRgb(P.colorA), cB: webgl.hexToRgb(P.colorB), cC: webgl.hexToRgb(P.coreColor || '#eafcff'),
         });
         if (this.sweepAnim && this.sweepAnim.length) {
           const ys = new Float32Array(8), ss = new Float32Array(8); let k = 0;
           for (const a of this.sweepAnim) { if (k >= 8) break; ys[k] = 0.06 + 0.9 * a.p; ss[k] = Math.max(0, 1 - Math.max(0, a.p - 1) * 5) * a.s; k++; }
-          RL.draw(gl, sweepDraw, target, { ys, ss, nS: k, thick: 0.006 + 0.004 * (P.lineWidth / 1.4), intensity: P.intensity,
-            cA: RL.hexToRgb(P.colorA), cC: RL.hexToRgb(P.coreColor || '#eafcff') }, 'add');
+          webgl.draw(gl, sweepDraw, target, { ys, ss, nS: k, thick: 0.006 + 0.004 * (P.lineWidth / 1.4), intensity: P.intensity,
+            cA: webgl.hexToRgb(P.colorA), cC: webgl.hexToRgb(P.coreColor || '#eafcff') }, 'add');
         }
       },
       get state() { return S; },
-      dispose() { RL.freeTarget(gl, S); },
+      dispose() { webgl.freeTarget(gl, S); },
     };
     return inst;
   },
