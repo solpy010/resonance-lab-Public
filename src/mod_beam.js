@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as eng from './engine.js';
 // BEAM — 가상 조명 빔 + 볼류메트릭 안개 산란 (빔 하강·부채꼴 확산·점멸)
 
 RL.modules.beam = {
@@ -70,7 +71,7 @@ RL.modules.beam = {
       },
       render(target, P) {
         webgl.clear(gl, target);
-        const n = engine.project.faces, faces = RL.parseFaces(P.sources, n);
+        const n = engine.project.faces, faces = eng.parseFaces(P.sources, n);
         const bm = new Float32Array(128), bc = new Float32Array(128), cols = (P.colors || ['#ffffff']).map(webgl.hexToRgb);
         let k = 0; const T = this.time;
         const per = Math.round(P.perSource);

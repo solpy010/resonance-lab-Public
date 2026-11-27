@@ -2,6 +2,7 @@
 import { RL } from './core/rl.js';
 import { $, h } from './ui.js';
 import * as webgl from './gl.js';
+import * as eng from './engine.js';
 // RESONANCE LAB — menubar, resizable panels, zoom/pan, undo/redo, scene shelf (Ctrl+S), acts, asset loading
 
 Object.assign(RL.App.prototype, {
@@ -47,9 +48,9 @@ Object.assign(RL.App.prototype, {
     if (clip.assets && Object.keys(clip.assets).length) { P.assets = P.assets || {}; for (const id in clip.assets) if (!P.assets[id]) P.assets[id] = clip.assets[id]; this.engine.syncAssets && this.engine.syncAssets(); }
     const at = this.sel ? P.layers.findIndex(l => l.id === this.sel) + 1 : P.layers.length;
     const add = clip.layers.map(src => {
-      const fresh = RL.modules[src.type] ? RL.newLayer(src.type) : null; if (!fresh) return null;
+      const fresh = RL.modules[src.type] ? eng.newLayer(src.type) : null; if (!fresh) return null;
       const c = Object.assign(fresh, JSON.parse(JSON.stringify(src)));
-      c.params = Object.assign(RL.newLayer(src.type).params, c.params || {});
+      c.params = Object.assign(eng.newLayer(src.type).params, c.params || {});
       c.id = 'L' + Math.random().toString(36).slice(2, 8);
       if (P.layers.some(x => x.name === c.name)) c.name += ' (붙여넣기)';
       return c;
@@ -213,7 +214,7 @@ Object.assign(RL.App.prototype, {
 
   newProject() {
     if (this.project.layers.length && !confirm('새 프로젝트를 만들까요? (Ctrl+Z로 되돌릴 수 있습니다)')) return;
-    const p = RL.defaultProject(); p.name = 'Untitled';
+    const p = eng.defaultProject(); p.name = 'Untitled';
     this.loadProject(p, true);
   },
 

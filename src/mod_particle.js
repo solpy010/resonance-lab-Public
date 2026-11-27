@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as eng from './engine.js';
 // PARTICLE — CPU 결정적 파티클 (컬 노이즈 난류, 깊이별 크기·속도·밝기 차등, 팬라이트 그리드)
 
 RL.modules.particle = {
@@ -89,7 +90,7 @@ RL.modules.particle = {
           if (P.burstOn !== false) for (const e of evs) for (let j = 0; j < P.burst * e.s; j++) this.spawn(P, e.u, e.v, P.burstSpeed * e.s, 0, 360);
         }
         const sc = P.noiseScale, tz = this.time * 0.15;
-        const centers = RL.parseFaces(P.swirlFaces, engine.project.faces).map(f => (f + 0.5) / engine.project.faces);
+        const centers = eng.parseFaces(P.swirlFaces, engine.project.faces).map(f => (f + 0.5) / engine.project.faces);
         if (!centers.length) centers.push(0.5);
         const drag = Math.exp(-P.drag * dt), WR = !!engine.project.wrap;
         for (let i = 0; i < N; i++) {

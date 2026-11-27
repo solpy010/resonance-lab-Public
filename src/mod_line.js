@@ -2,6 +2,7 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as batches from './batch.js';
+import * as eng from './engine.js';
 // LINE — 리듬선(가로 요동) / 가로지르기(시작 면→끝 면, 속도) / 낙하 스크래치. 네온 관 모델 렌더.
 // 선의 현재 위치·속도를 engine.colliders에 공개 → 기하 물리 도형이 부딪혀 튕긴다.
 
@@ -84,7 +85,7 @@ RL.modules.line = {
       pickFace(str, n) {
         const s = String(str || '').trim();
         if (!s || /랜덤|random|\*/i.test(s)) return this.rng.int(n);
-        const list = RL.parseFaces(s, n);
+        const list = eng.parseFaces(s, n);
         return list.length ? list[this.rng.int(list.length)] : 0;
       },
       spawnStreak(P, sNow) {

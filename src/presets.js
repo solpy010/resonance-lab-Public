@@ -1,11 +1,12 @@
 'use strict';
 import { RL } from './core/rl.js';
+import * as eng from './engine.js';
 // Scene presets — 1110 연출 체크리스트 기준. 장면은 연출안에서 출발, 색은 씬 고유 팔레트
 
 RL.presets = {};
 (function () {
   const L = (type, o, params, react, keys) => {
-    const l = RL.newLayer(type, o);
+    const l = eng.newLayer(type, o);
     Object.assign(l.params, params || {});
     Object.assign(l.react, react || {});
     if (keys) l.keys = keys;
@@ -14,7 +15,7 @@ RL.presets = {};
   const K = (...pairs) => pairs.map(([t, v, e]) => ({ t, v, e: e || 'quintOut' }));
   const marks = (...ts) => ts.map(t => ({ t, s: 1 }));
   const grid = (bpm, from, to, s) => { const out = []; for (let t = from; t < to; t += 60 / bpm) out.push({ t: +t.toFixed(4), s: s || 1 }); return out; };
-  const base = (o) => Object.assign(RL.defaultProject(), o);
+  const base = (o) => Object.assign(eng.defaultProject(), o);
 
   RL.presets['empty'] = { label: '빈 프로젝트', make: () => base({ name: '새 프로젝트' }) };
 

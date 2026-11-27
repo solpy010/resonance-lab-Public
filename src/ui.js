@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as eng from './engine.js';
 // RESONANCE LAB — application UI
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -20,7 +21,7 @@ const fmtTime = (t) => { const m = Math.floor(t / 60), s = t - m * 60; return St
 
 RL.App = class {
   constructor() {
-    this.engine = new RL.Engine($('#gl'));
+    this.engine = new eng.Engine($('#gl'));
     this.audio = new RL.Audio();
     this.exporter = new RL.Exporter(this);
     this.view = { guides: true, thumb: false };
@@ -47,18 +48,18 @@ RL.App = class {
 
   // ---------------------------------------------------------------- project
   normalize(p) {
-    const d = RL.defaultProject();
+    const d = eng.defaultProject();
     const o = Object.assign(d, p || {});
-    o.bg = Object.assign(RL.defaultProject().bg, (p || {}).bg || {});
-    o.post = Object.assign(RL.defaultProject().post, (p || {}).post || {});
-    o.impact = Object.assign(RL.defaultProject().impact, (p || {}).impact || {});
+    o.bg = Object.assign(eng.defaultProject().bg, (p || {}).bg || {});
+    o.post = Object.assign(eng.defaultProject().post, (p || {}).post || {});
+    o.impact = Object.assign(eng.defaultProject().impact, (p || {}).impact || {});
     o.markers = (o.markers || []).filter(m => isFinite(m.t)).sort((a, b) => a.t - b.t);
     o.speedKeys = o.speedKeys || [];
     o.layers = (o.layers || []).filter(l => RL.modules[l.type]).map(l => {
-      const fresh = RL.newLayer(l.type);
+      const fresh = eng.newLayer(l.type);
       const out = Object.assign(fresh, l);
-      out.params = Object.assign(RL.newLayer(l.type).params, l.params || {});
-      out.react = Object.assign(RL.defaultReact(), l.react || {});
+      out.params = Object.assign(eng.newLayer(l.type).params, l.params || {});
+      out.react = Object.assign(eng.defaultReact(), l.react || {});
       out.keys = l.keys || {};
       return out;
     });
@@ -255,7 +256,7 @@ RL.App = class {
   // ---------------------------------------------------------------- layers
   addLayer(type) {
     const P = this.project;
-    const L = RL.newLayer(type);
+    const L = eng.newLayer(type);
     let n = 1; while (P.layers.some(x => x.name === L.name + (n > 1 ? ' ' + n : ''))) n++;
     if (n > 1) L.name += ' ' + n;
     P.layers.push(L);
@@ -317,11 +318,11 @@ RL.App = class {
     }
     const dc = h('details', { class: 'grp', open: true }, h('summary', {}, '깊이·합성', h('small', { text: '2층' })));
     const bc = h('div', { class: 'body' });
-    for (const s of RL.layerCommonSchema) bc.append(this.paramRow(L, s, 'common'));
+    for (const s of eng.layerCommonSchema) bc.append(this.paramRow(L, s, 'common'));
     dc.append(bc); box.append(dc);
     const dr = h('details', { class: 'grp', open: true }, h('summary', {}, '마커 반응', h('small', { text: '3층' })));
     const br = h('div', { class: 'body' });
-    for (const s of RL.reactSchema) br.append(this.paramRow(L, s, 'react'));
+    for (const s of eng.reactSchema) br.append(this.paramRow(L, s, 'react'));
     dr.append(br); box.append(dr);
   }
 
@@ -338,7 +339,7 @@ RL.App = class {
     row.append(h('label', { text: s.label }));
     if (s.type === 'range') {
       const keys = () => (L.keys[keyId] || []);
-      const cur = () => keys().length ? RL.evalKeys(keys(), this.t, get()) : get();
+      const cur = () => keys().length ? eng.evalKeys(keys(), this.t, get()) : get();
       const rng = h('input', { type: 'range', min: s.min, max: s.max, step: s.step });
       const num = h('input', { type: 'number', min: s.min, max: s.max, step: s.step });
       const key = h('button', { class: 'key', title: '키프레임: 클릭=현재 시간에 추가/삭제, Alt+클릭=이 항목 키 전체 삭제' }, '◆');
@@ -486,7 +487,7 @@ RL.App = class {
     const row = h('div', { class: 'prm', style: 'grid-template-columns:62px 1fr 46px 18px' });
     const r = h('input', { type: 'range', min: 0, max: 4, step: 0.01 }), num = h('input', { type: 'number', min: 0, max: 4, step: 0.01 });
     const key = h('button', { class: 'key', title: '전체 속도 키프레임 (Alt+클릭=전체 삭제)' }, '◇');
-    const cur = () => P.speedKeys.length ? RL.evalKeys(P.speedKeys, this.t, P.speed) : P.speed;
+    const cur = () => P.speedKeys.length ? eng.evalKeys(P.speedKeys, this.t, P.speed) : P.speed;
     const sync = () => { const v = cur(), act = document.activeElement; if (act !== r) r.value = v; if (act !== num) num.value = (+v).toFixed(2); const on = P.speedKeys.some(k => Math.abs(k.t - this.t) < 0.5 / P.fps); key.textContent = on ? '◆' : '◇'; key.classList.toggle('on', on); key.classList.toggle('has', !on && P.speedKeys.length > 0); };
     const apply = v => {
       v = +v;
@@ -625,7 +626,7 @@ RL.App = class {
     for (let i = 0; i < n; i++) {
       const x = i / n * c.width;
       if (i > 0) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, c.height); g.stroke(); }
-      g.fillText(RL.FACE_NAMES[i], x + 5 * dpr, 13 * dpr);
+      g.fillText(eng.FACE_NAMES[i], x + 5 * dpr, 13 * dpr);
     }
   }
   drawThumb() {
@@ -668,7 +669,7 @@ RL.App = class {
     if (P.speedKeys.length) rows.push({ name: '전체 속도', ks: P.speedKeys, keyId: '__speed__', layerId: null });
     const L = this.selLayer();
     if (L) for (const k in L.keys) if (L.keys[k] && L.keys[k].length) {
-      const sc = RL.modules[L.type].schema.find(x => x.id === k) || RL.layerCommonSchema.find(x => '_' + x.id === k);
+      const sc = RL.modules[L.type].schema.find(x => x.id === k) || eng.layerCommonSchema.find(x => '_' + x.id === k);
       rows.push({ name: (sc ? sc.label : k), ks: L.keys[k], keyId: k, layerId: L.id });
     }
     let ry = wy + wh + 6;

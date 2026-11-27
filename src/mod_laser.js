@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as eng from './engine.js';
 // LASER — 레이저 아트: 가는 고휘도 빔(흰 심 + 색 번짐) · 안개 산란 · BPM 동기 패턴 · 레이저 그래픽(리사주·원·별·물결)
 
 (function () {
@@ -111,7 +112,7 @@ import * as webgl from './gl.js';
         render(target, P) {
           webgl.clear(gl, target);
           const proj = engine.project, fc = Math.max(1, proj.faces | 0), A = engine.aspect;
-          let faces = RL.parseFaces(P.sources, fc); if (!faces.length) faces = [Math.floor(fc / 2)];
+          let faces = eng.parseFaces(P.sources, fc); if (!faces.length) faces = [Math.floor(fc / 2)];
           const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(webgl.hexToRgb);
           const samp = (x) => { const k = cols.length; x = ((x % 1) + 1) % 1 * k; const i = Math.floor(x), f = x - i; const a = cols[i % k], b = cols[(i + 1) % k]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]; };
           const B = this.beat, D = Math.PI / 180, k = Math.round(P.beams);

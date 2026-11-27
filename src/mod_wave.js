@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as eng from './engine.js';
 // WAVE — 2D 파동 방정식. 경계는 '흡수'(열린 공간)라 벽 반사 없이 퍼져 사라진다.
 // 표현: 등고선 링 / 소프트 글로우 링 / 간섭 광망 / 마루 빛 / 입체 음영.
 
@@ -220,7 +221,7 @@ RL.modules.wave = {
         for (const a of this.sweepAnim) a.p += P.waveSpeed * dt * 0.42;   // clean bottom→top rise, exits off top
         this.sweepAnim = this.sweepAnim.filter(a => a.p < 1.2);
         if (P.oscAmp > 0) {
-          const faces = RL.parseFaces(P.oscFaces, n); const arr = new Float32Array(64); let k = 0;
+          const faces = eng.parseFaces(P.oscFaces, n); const arr = new Float32Array(64); let k = 0;
           const v = Math.sin(this.time * Math.PI * 2 * P.oscFreq) * P.oscAmp * 0.04 * dt * 30;
           for (const f of faces) if (k < 16) { const sp = this.toSim((f + 0.5) / n, P.eventY); arr.set([sp[0], sp[1], P.radius * 0.6, v], (k++) * 4); }
           if (k) { webgl.draw(gl, inject, S.b, { st: S.a, imp: arr, nImp: k, shape: 0, aspect: engine.aspect, wrap: W, uScale: this.uScale, vScale: this.vScale }); S.swap(); }
@@ -234,7 +235,7 @@ RL.modules.wave = {
         webgl.clear(gl, target);
         if (P.mode === 'glow') {
           const n = engine.project.faces, list = [];
-          const homes = RL.parseFaces(P.orbFaces, n);
+          const homes = eng.parseFaces(P.orbFaces, n);
           if (homes.length && (P.sustain || 0) > 0.01) for (const f of homes) list.push({ x: (f + 0.5) / n, y: P.eventY, age: 0, s: 1 });
           for (const e of this.emits) list.push({ x: e.x, y: e.y, age: this.time - e.t0, s: e.s });
           const use = list.slice(-6), em = new Float32Array(24); let k = 0;

@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as eng from './engine.js';
 // SHAPES — 중력·반발·마찰에 반응하는 기하 도형 물리 (도형 간 충돌 + 다른 레이어 라인아트와 충돌)
 
 RL.SHAPE_NAMES = { '원': 1, '사각': 0, '삼각': 2, '고리': 3, '육각': 4, '십자': 5, '마름모': 6, circle: 1, square: 0, triangle: 2, ring: 3, hex: 4, cross: 5, diamond: 6 };
@@ -72,7 +73,7 @@ RL.modules.shapes = {
       },
       spawnPos(P) {
         const r = this.rng, A = engine.aspect, n = engine.project.faces;
-        const faces = RL.parseFaces(P.spawnFaces, n);
+        const faces = eng.parseFaces(P.spawnFaces, n);
         const fx = () => faces.length ? (faces[r.int(faces.length)] + 0.1 + r() * 0.8) / n * A : r() * A;
         const ang = (base) => (base + (r() - 0.5) * P.spread) * Math.PI / 180;
         if (P.spawn === 'fountain') { const a = ang(90), s = P.speed * (0.6 + r() * 0.8) + 0.8; return [fx(), -0.05, Math.cos(a) * s, Math.sin(a) * s]; }

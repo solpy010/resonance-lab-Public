@@ -6,9 +6,9 @@ import * as icons from './builtins.js';
 // RESONANCE LAB — engine: deterministic frame clock, layer graph, 2층 post, background/alpha output
 
 RL.modules = {};
-RL.FACE_NAMES = 'ABCDEFGHIJKL'.split('');
+export const FACE_NAMES = 'ABCDEFGHIJKL'.split('');
 
-RL.layerCommonSchema = [
+export const layerCommonSchema = [
   { id: 'blend', label: '레이어 합성', type: 'select', options: [['over', '일반(Normal)'], ['add', '더하기(Add)'], ['screen', '스크린(Screen)'], ['multiply', '곱하기(Multiply)'], ['hardlight', '하드라이트(Hard Light)'], ['overlay', '오버레이(Overlay)'], ['softlight', '소프트라이트(Soft Light)'], ['difference', '차이(Difference)'], ['lighten', '밝게(Lighten)'], ['darken', '어둡게(Darken)']], group: '깊이·합성', hint: '아래 레이어들과 섞이는 방식' },
   { id: 'opacity', label: '불투명도', type: 'range', min: 0, max: 1, step: 0.01, group: '깊이·합성', key: true },
   { id: 'depth', label: '깊이(원경 감쇠)', type: 'range', min: 0, max: 1, step: 0.01, group: '깊이·합성', key: true, hint: '0=근경, 1=원경. 원경일수록 배경색에 가까워지고 어두워짐' },
@@ -16,7 +16,7 @@ RL.layerCommonSchema = [
   { id: 'speed', label: '레이어 속도', type: 'range', min: 0, max: 4, step: 0.01, group: '깊이·합성', key: true },
 ];
 
-RL.reactSchema = [
+export const reactSchema = [
   { id: 'enabled', label: '마커에 반응', type: 'bool' },
   { id: 'faces', label: '반응 위치', type: 'select', options: [['all', '모든 면 동시'], ['origin', '한 면'], ['propagate', '한 면 → 인접면 전파'], ['list', '지정 면'], ['random', '무작위 면(시드)']] },
   { id: 'origin', label: '시작 면', type: 'text' },
@@ -26,11 +26,11 @@ RL.reactSchema = [
   { id: 'jitter', label: '위치 흔들림', type: 'range', min: 0, max: 1, step: 0.01 },
 ];
 
-RL.defaultReact = () => ({ enabled: true, faces: 'all', origin: 'C', list: 'A,C,E', delay: 120, gain: 1, jitter: 0 });
+export const defaultReact = () => ({ enabled: true, faces: 'all', origin: 'C', list: 'A,C,E', delay: 120, gain: 1, jitter: 0 });
 
-RL.BLEND_ID = { over: 0, normal: 0, add: 1, screen: 2, multiply: 3, hardlight: 4, overlay: 5, softlight: 6, difference: 7, lighten: 8, darken: 9 };
+export const BLEND_ID = { over: 0, normal: 0, add: 1, screen: 2, multiply: 3, hardlight: 4, overlay: 5, softlight: 6, difference: 7, lighten: 8, darken: 9 };
 
-RL.defaultProject = () => ({
+export const defaultProject = () => ({
   version: 1, name: 'Untitled', width: 3840, height: 640, fps: 30, duration: 10, seed: 125, faces: 6, wrap: true, assets: {},
   bg: { mode: 'solid', color: '#05070c', chroma: '#00b140' },
   post: { glow: 0.35, glowThreshold: 0.55, glowRadius: 0.5, halation: 0, grain: 0.03, chroma: 0, exposure: 1, contrast: 1, saturation: 1 },
@@ -40,19 +40,19 @@ RL.defaultProject = () => ({
   layers: [],
 });
 
-RL.newLayer = function (type, overrides) {
+export const newLayer = function (type, overrides) {
   const M = RL.modules[type];
   const params = {};
   for (const s of M.schema) params[s.id] = Array.isArray(s.default) ? s.default.slice() : s.default;
   return Object.assign({
     id: 'L' + Math.random().toString(36).slice(2, 8), type, name: M.label, enabled: true,
     blend: M.blend || 'over', opacity: 1, depth: 0, blur: 0, speed: 1,
-    params, keys: {}, react: RL.defaultReact(),
+    params, keys: {}, react: defaultReact(),
   }, overrides || {});
 };
 
 // keyframes: [{t, v, e}] sorted
-RL.evalKeys = function (keys, t, fallback) {
+export const evalKeys = function (keys, t, fallback) {
   if (!keys || !keys.length) return fallback;
   if (t <= keys[0].t) return keys[0].v;
   const last = keys[keys.length - 1];
@@ -67,11 +67,11 @@ RL.evalKeys = function (keys, t, fallback) {
   return fallback;
 };
 
-RL.parseFaces = function (str, nFaces) {
-  return String(str || '').toUpperCase().split(/[\s,]+/).map(c => RL.FACE_NAMES.indexOf(c)).filter(i => i >= 0 && i < nFaces);
+export const parseFaces = function (str, nFaces) {
+  return String(str || '').toUpperCase().split(/[\s,]+/).map(c => FACE_NAMES.indexOf(c)).filter(i => i >= 0 && i < nFaces);
 };
 
-RL.Engine = class {
+export const Engine = class {
   constructor(canvas) {
     this.canvas = canvas;
     const gl = this.gl = webgl.createGL(canvas);
@@ -252,13 +252,13 @@ RL.Engine = class {
 
   // expand markers into per-face sub-events for this layer (deterministic)
   buildSchedule(L) {
-    const P = this.project, R = L.def.react || RL.defaultReact();
+    const P = this.project, R = L.def.react || defaultReact();
     if (!R.enabled) return [];
     const n = Math.max(1, P.faces | 0);
     const rng = webgl.rng(webgl.hashSeed(P.seed, L.id, 'events'));
     const out = [];
-    const origin = Math.max(0, RL.parseFaces(R.origin, n)[0] ?? Math.floor(n / 2));
-    const list = RL.parseFaces(R.list, n);
+    const origin = Math.max(0, parseFaces(R.origin, n)[0] ?? Math.floor(n / 2));
+    const list = parseFaces(R.list, n);
     (P.markers || []).forEach((m, mi) => {
       const mr = webgl.rng(webgl.hashSeed(P.seed, 'marker', mi, Math.round(m.t * 1000)));   // same marker → same spot on every layer
       const mFace = mr.int(n), mju = mr() - 0.5, mjv = mr() - 0.5;
@@ -282,11 +282,11 @@ RL.Engine = class {
     const cur = {};
     for (const s of M.schema) {
       const v = def.params[s.id];
-      cur[s.id] = (s.type === 'range' && def.keys && def.keys[s.id]) ? RL.evalKeys(def.keys[s.id], t, v) : v;
+      cur[s.id] = (s.type === 'range' && def.keys && def.keys[s.id]) ? evalKeys(def.keys[s.id], t, v) : v;
     }
-    for (const s of RL.layerCommonSchema) {
+    for (const s of layerCommonSchema) {
       const v = def[s.id];
-      cur['_' + s.id] = (s.type === 'range' && def.keys && def.keys['_' + s.id]) ? RL.evalKeys(def.keys['_' + s.id], t, v) : v;
+      cur['_' + s.id] = (s.type === 'range' && def.keys && def.keys['_' + s.id]) ? evalKeys(def.keys['_' + s.id], t, v) : v;
     }
     return cur;
   }
@@ -294,7 +294,7 @@ RL.Engine = class {
   // ------------------------------------------------------------ simulation
   stepFrame() {
     const P = this.project, fps = P.fps, dt = 1 / fps, t = this.frame / fps;
-    const gs = RL.evalKeys(P.speedKeys, t, P.speed);
+    const gs = evalKeys(P.speedKeys, t, P.speed);
     // global impact
     while (this.gPtr < this.globalEvents.length && this.globalEvents[this.gPtr].t < t + dt) {
       const e = this.globalEvents[this.gPtr++];
@@ -339,7 +339,7 @@ RL.Engine = class {
         webgl.draw(gl, this.prog.copy, this.tmp, { src: this.out });
         src = this.tmp;
       }
-      webgl.draw(gl, this.prog.composite, nxt, { src, dst: acc, opacity: cur._opacity, depth: cur._depth, bg: atmo, mode: RL.BLEND_ID[L.def.blend] ?? 0 });
+      webgl.draw(gl, this.prog.composite, nxt, { src, dst: acc, opacity: cur._opacity, depth: cur._depth, bg: atmo, mode: BLEND_ID[L.def.blend] ?? 0 });
       const t = acc; acc = nxt; nxt = t;
     }
     this.accum = acc;
@@ -427,3 +427,6 @@ RL.Engine = class {
     while (this.frame < frame) { this.stepFrame(); if (onProgress && this.frame % 30 === 0) onProgress(this.frame / frame); }
   }
 };
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { FACE_NAMES, layerCommonSchema, reactSchema, defaultReact, BLEND_ID, defaultProject, newLayer, evalKeys, parseFaces, Engine });

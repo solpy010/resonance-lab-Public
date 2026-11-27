@@ -2,6 +2,7 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as fxlib from './fx.js';
+import * as eng from './engine.js';
 // FLOATERS — 오브젝트 유영: 화면 하단 바깥에서 태어나 부력·중력·저항을 받아 위로 떠오르고, 마커 타이밍에 '팡' 터지며 사라짐.
 // 결정론: 레이어 rng + 고정 dt → 같은 프레임은 언제나 같은 결과.
 
@@ -66,7 +67,7 @@ RL.modules.floaters = {
         return out.length ? out : [{ b: 'instruments', k: 0 }];
       },
       spawnX(P) {
-        const n = engine.project.faces, f = RL.parseFaces(P.spawnFaces, n), r = this.rng;
+        const n = engine.project.faces, f = eng.parseFaces(P.spawnFaces, n), r = this.rng;
         if (f.length) return (f[r.int(f.length)] + r()) / n;
         const a = Math.min(P.spawnMin, P.spawnMax), b = Math.max(P.spawnMin, P.spawnMax);
         return a + (b - a) * r();

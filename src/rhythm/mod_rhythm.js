@@ -2,6 +2,7 @@ import { RL } from '../core/rl.js';
 import { FXN, FX_GLSL } from './fx_glsl.js';
 import * as webgl from '../gl.js';
 import * as fxlib from '../fx.js';
+import * as eng from '../engine.js';
 // RHYTHM — 리듬게임 인게임: 마커 시점에 노트가 심벌에 '닿고', 그때 이펙트가 터지며, 누적될수록 심벌이 화려해짐.
 // 전부 시간의 함수(무상태) → 어느 프레임을 다시 렌더해도 동일. 노트 도착/이펙트 시점은 각각 싱크 슬라이더로 조정.
 // 셰이더 이펙트 14종(6 카테고리) + 다중참여 이펙트(참여 인원·빈도·통일↔무분별·크기 편차·퍼짐 반경·시드).
@@ -127,7 +128,7 @@ RL.modules.rhythm = {
     let fxProg = null;
     const getProg = () => fxProg || (fxProg = webgl.program(gl, FX_GLSL));
     const B = { d0: new Float32Array(FXN * 4), d1: new Float32Array(FXN * 4), d2: new Float32Array(FXN * 4), c0: new Float32Array(FXN * 3), c1: new Float32Array(FXN * 3), c2: new Float32Array(FXN * 3) };
-    const kv = (id, t, P) => (L.keys && L.keys[id] && L.keys[id].length) ? RL.evalKeys(L.keys[id], t, P[id]) : P[id];
+    const kv = (id, t, P) => (L.keys && L.keys[id] && L.keys[id].length) ? eng.evalKeys(L.keys[id], t, P[id]) : P[id];
     const inst = {
       reset(rng, P) { this.now = 0; this.cacheKey = ''; },
       step(dt, t, evs, P, rawDt) { this.now = t + (rawDt || dt); },
@@ -148,7 +149,7 @@ RL.modules.rhythm = {
         this.cache = out; this.cacheKey = key; return out;
       },
       symbols(P) {
-        const n = engine.project.faces, f = RL.parseFaces(P.symbolFaces, n);
+        const n = engine.project.faces, f = eng.parseFaces(P.symbolFaces, n);
         return f.length ? f.map(i => (i + 0.5) / n) : [P.symbolX];
       },
       // ---- 셰이더 이펙트: 종류 고르기 / 색 / 화면 안 제한

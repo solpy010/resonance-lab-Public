@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as eng from './engine.js';
 // FLUID — Stable Fluids (Stam 1999 계열) 직접 구현. 염료 밀도 = 알파 → 배경 위에 '물감'처럼 얹힘
 
 RL.modules.fluid = {
@@ -112,7 +113,7 @@ RL.modules.fluid = {
           const band = P.emitBand;
           if (P.flow === 'rise') { u = (e.u + Math.sin(T * e.fu + e.pu) * 0.05 + 1) % 1; v = 0.04 + 0.08 * e.v; dx = Math.sin(T * e.fv + e.pv) * 0.3; dy = 1; }
           else if (P.flow === 'vortex') {
-            const vf = RL.parseFaces(P.vortexFaces, engine.project.faces), nf = engine.project.faces;
+            const vf = eng.parseFaces(P.vortexFaces, engine.project.faces), nf = engine.project.faces;
             const cu = vf.length ? (vf[i % vf.length] + 0.5) / nf : 0.5, sgn = vf.length && (i % vf.length) % 2 ? -1 : 1;
             const a = T * 0.9 * P.flowSpeed * sgn + e.pu, rad = 0.12 + 0.28 * e.u;
             u = cu + Math.cos(a) * rad / A; v = 0.5 + Math.sin(a) * rad; dx = -Math.sin(a) * sgn; dy = Math.cos(a) * sgn; }
@@ -141,7 +142,7 @@ RL.modules.fluid = {
           webgl.draw(gl, splat, vel.b, { src: vel.a, pt: [0.0, 0.5], val: [P.flowSpeed * 0.02, 0, 0, 0], rad: 2.0, aspect: 1, dyeMode: 0 }); vel.swap();
         }
         if (P.flow === 'vortex' && P.vortex > 0) {
-          const faces = RL.parseFaces(P.vortexFaces, engine.project.faces);
+          const faces = eng.parseFaces(P.vortexFaces, engine.project.faces);
           const arr = new Float32Array(24); let k = 0; const nf = engine.project.faces;
           for (const f of faces) if (k < 6) arr.set([(f + 0.5) / nf, 0.5, 0.15, P.vortex * 40 * (k % 2 ? -1 : 1)], (k++) * 4);
           if (!k) { arr.set([0.5, 0.5, 0.15, P.vortex * 40], 0); k = 1; }

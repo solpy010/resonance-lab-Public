@@ -2,6 +2,7 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as batches from './batch.js';
+import * as eng from './engine.js';
 // NEONGEO — 네온 입체 기하: 입방체·다면체·기하무늬가 제자리에서 회전. 외곽선만 / 보이는 모서리 / 모든 모서리 / 면+모서리 / 솔리드
 
 (function () {
@@ -155,7 +156,7 @@ import * as batches from './batch.js';
           const n = Math.round(P.count), r = webgl.rng(webgl.hashSeed(proj.seed, L.id, 'geo'));
           const cols = (P.colors && P.colors.length ? P.colors : ['#ffffff']).map(webgl.hexToRgb);
           const samp = (x) => { const k = cols.length; x = ((x % 1) + 1) % 1 * k; const i = Math.floor(x), f = x - i; const a = cols[i % k], b = cols[(i + 1) % k]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]; };
-          const listF = RL.parseFaces(P.list, fc);
+          const listF = eng.parseFaces(P.list, fc);
           const sg = engine.segs, sb = engine.sprites; sg.begin(); sb.begin(); nt = 0;
           const style = batches.LINE_STYLES[P.style] ?? 0;
           const ph = ((this.beat % 1) + 1) % 1, pulseB = Math.exp(-ph * 6);

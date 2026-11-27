@@ -1083,8 +1083,8 @@ var drawBuiltin = function(name) {
 Object.assign(RL, { drawBuiltin });
 // src/engine.js
 RL.modules = {};
-RL.FACE_NAMES = "ABCDEFGHIJKL".split("");
-RL.layerCommonSchema = [
+var FACE_NAMES = "ABCDEFGHIJKL".split("");
+var layerCommonSchema = [
 	{
 		id: "blend",
 		label: "레이어 합성",
@@ -1146,7 +1146,7 @@ RL.layerCommonSchema = [
 		key: true
 	}
 ];
-RL.reactSchema = [
+var reactSchema = [
 	{
 		id: "enabled",
 		label: "마커에 반응",
@@ -1199,7 +1199,7 @@ RL.reactSchema = [
 		step: .01
 	}
 ];
-RL.defaultReact = () => ({
+var defaultReact = () => ({
 	enabled: true,
 	faces: "all",
 	origin: "C",
@@ -1208,7 +1208,7 @@ RL.defaultReact = () => ({
 	gain: 1,
 	jitter: 0
 });
-RL.BLEND_ID = {
+var BLEND_ID = {
 	over: 0,
 	normal: 0,
 	add: 1,
@@ -1221,7 +1221,7 @@ RL.BLEND_ID = {
 	lighten: 8,
 	darken: 9
 };
-RL.defaultProject = () => ({
+var defaultProject = () => ({
 	version: 1,
 	name: "Untitled",
 	width: 3840,
@@ -1259,7 +1259,7 @@ RL.defaultProject = () => ({
 	markers: [],
 	layers: []
 });
-RL.newLayer = function(type, overrides) {
+var newLayer = function(type, overrides) {
 	const M = RL.modules[type];
 	const params = {};
 	for (const s of M.schema) params[s.id] = Array.isArray(s.default) ? s.default.slice() : s.default;
@@ -1275,10 +1275,10 @@ RL.newLayer = function(type, overrides) {
 		speed: 1,
 		params,
 		keys: {},
-		react: RL.defaultReact()
+		react: defaultReact()
 	}, overrides || {});
 };
-RL.evalKeys = function(keys, t, fallback) {
+var evalKeys = function(keys, t, fallback) {
 	if (!keys || !keys.length) return fallback;
 	if (t <= keys[0].t) return keys[0].v;
 	const last = keys[keys.length - 1];
@@ -1292,10 +1292,10 @@ RL.evalKeys = function(keys, t, fallback) {
 	}
 	return fallback;
 };
-RL.parseFaces = function(str, nFaces) {
-	return String(str || "").toUpperCase().split(/[\s,]+/).map((c) => RL.FACE_NAMES.indexOf(c)).filter((i) => i >= 0 && i < nFaces);
+var parseFaces = function(str, nFaces) {
+	return String(str || "").toUpperCase().split(/[\s,]+/).map((c) => FACE_NAMES.indexOf(c)).filter((i) => i >= 0 && i < nFaces);
 };
-RL.Engine = class {
+var Engine = class {
 	constructor(canvas) {
 		this.canvas = canvas;
 		const gl = this.gl = createGL(canvas);
@@ -1507,13 +1507,13 @@ RL.Engine = class {
 		this.gPtr = 0;
 	}
 	buildSchedule(L) {
-		const P = this.project, R = L.def.react || RL.defaultReact();
+		const P = this.project, R = L.def.react || defaultReact();
 		if (!R.enabled) return [];
 		const n = Math.max(1, P.faces | 0);
 		const rng$1 = rng(hashSeed(P.seed, L.id, "events"));
 		const out = [];
-		const origin = Math.max(0, RL.parseFaces(R.origin, n)[0] ?? Math.floor(n / 2));
-		const list = RL.parseFaces(R.list, n);
+		const origin = Math.max(0, parseFaces(R.origin, n)[0] ?? Math.floor(n / 2));
+		const list = parseFaces(R.list, n);
 		(P.markers || []).forEach((m, mi) => {
 			const mr = rng(hashSeed(P.seed, "marker", mi, Math.round(m.t * 1e3)));
 			const mFace = mr.int(n), mju = mr() - .5, mjv = mr() - .5;
@@ -1544,17 +1544,17 @@ RL.Engine = class {
 		const cur = {};
 		for (const s of M.schema) {
 			const v = def.params[s.id];
-			cur[s.id] = s.type === "range" && def.keys && def.keys[s.id] ? RL.evalKeys(def.keys[s.id], t, v) : v;
+			cur[s.id] = s.type === "range" && def.keys && def.keys[s.id] ? evalKeys(def.keys[s.id], t, v) : v;
 		}
-		for (const s of RL.layerCommonSchema) {
+		for (const s of layerCommonSchema) {
 			const v = def[s.id];
-			cur["_" + s.id] = s.type === "range" && def.keys && def.keys["_" + s.id] ? RL.evalKeys(def.keys["_" + s.id], t, v) : v;
+			cur["_" + s.id] = s.type === "range" && def.keys && def.keys["_" + s.id] ? evalKeys(def.keys["_" + s.id], t, v) : v;
 		}
 		return cur;
 	}
 	stepFrame() {
 		const P = this.project, fps = P.fps, dt = 1 / fps, t = this.frame / fps;
-		const gs = RL.evalKeys(P.speedKeys, t, P.speed);
+		const gs = evalKeys(P.speedKeys, t, P.speed);
 		while (this.gPtr < this.globalEvents.length && this.globalEvents[this.gPtr].t < t + dt) {
 			const e = this.globalEvents[this.gPtr++];
 			if (P.impact.enabled && e.t >= t - dt) this.impactLeft = P.impact.frames;
@@ -1630,7 +1630,7 @@ RL.Engine = class {
 				opacity: cur._opacity,
 				depth: cur._depth,
 				bg: atmo,
-				mode: RL.BLEND_ID[L.def.blend] ?? 0
+				mode: BLEND_ID[L.def.blend] ?? 0
 			});
 			const t = acc;
 			acc = nxt;
@@ -1796,6 +1796,18 @@ RL.Engine = class {
 		}
 	}
 };
+Object.assign(RL, {
+	FACE_NAMES,
+	layerCommonSchema,
+	reactSchema,
+	defaultReact,
+	BLEND_ID,
+	defaultProject,
+	newLayer,
+	evalKeys,
+	parseFaces,
+	Engine
+});
 // src/fx.js
 var FX_TYPES = [
 	"ring",
@@ -2438,7 +2450,7 @@ RL.modules.wave = {
 				for (const a of this.sweepAnim) a.p += P.waveSpeed * dt * .42;
 				this.sweepAnim = this.sweepAnim.filter((a) => a.p < 1.2);
 				if (P.oscAmp > 0) {
-					const faces = RL.parseFaces(P.oscFaces, n);
+					const faces = parseFaces(P.oscFaces, n);
 					const arr = /* @__PURE__ */ new Float32Array(64);
 					let k = 0;
 					const v = Math.sin(this.time * Math.PI * 2 * P.oscFreq) * P.oscAmp * .04 * dt * 30;
@@ -2482,7 +2494,7 @@ RL.modules.wave = {
 				clear(gl, target);
 				if (P.mode === "glow") {
 					const n = engine.project.faces, list = [];
-					const homes = RL.parseFaces(P.orbFaces, n);
+					const homes = parseFaces(P.orbFaces, n);
 					if (homes.length && (P.sustain || 0) > .01) for (const f of homes) list.push({
 						x: (f + .5) / n,
 						y: P.eventY,
@@ -2953,7 +2965,7 @@ RL.modules.fluid = {
 						dx = Math.sin(T * e.fv + e.pv) * .3;
 						dy = 1;
 					} else if (P.flow === "vortex") {
-						const vf = RL.parseFaces(P.vortexFaces, engine.project.faces), nf = engine.project.faces;
+						const vf = parseFaces(P.vortexFaces, engine.project.faces), nf = engine.project.faces;
 						const cu = vf.length ? (vf[i % vf.length] + .5) / nf : .5, sgn = vf.length && i % vf.length % 2 ? -1 : 1;
 						const a = T * .9 * P.flowSpeed * sgn + e.pu, rad = .12 + .28 * e.u;
 						u = cu + Math.cos(a) * rad / A;
@@ -3060,7 +3072,7 @@ RL.modules.fluid = {
 					vel.swap();
 				}
 				if (P.flow === "vortex" && P.vortex > 0) {
-					const faces = RL.parseFaces(P.vortexFaces, engine.project.faces);
+					const faces = parseFaces(P.vortexFaces, engine.project.faces);
 					const arr = /* @__PURE__ */ new Float32Array(24);
 					let k = 0;
 					const nf = engine.project.faces;
@@ -3613,7 +3625,7 @@ RL.modules.particle = {
 					if (P.burstOn !== false) for (const e of evs) for (let j = 0; j < P.burst * e.s; j++) this.spawn(P, e.u, e.v, P.burstSpeed * e.s, 0, 360);
 				}
 				const sc = P.noiseScale, tz = this.time * .15;
-				const centers = RL.parseFaces(P.swirlFaces, engine.project.faces).map((f) => (f + .5) / engine.project.faces);
+				const centers = parseFaces(P.swirlFaces, engine.project.faces).map((f) => (f + .5) / engine.project.faces);
 				if (!centers.length) centers.push(.5);
 				const drag = Math.exp(-P.drag * dt), WR = !!engine.project.wrap;
 				for (let i = 0; i < N; i++) {
@@ -5130,7 +5142,7 @@ RL.modules.line = {
 			pickFace(str, n) {
 				const s = String(str || "").trim();
 				if (!s || /랜덤|random|\*/i.test(s)) return this.rng.int(n);
-				const list = RL.parseFaces(s, n);
+				const list = parseFaces(s, n);
 				return list.length ? list[this.rng.int(list.length)] : 0;
 			},
 			spawnStreak(P, sNow) {
@@ -5821,7 +5833,7 @@ RL.modules.beam = {
 			},
 			render(target, P) {
 				clear(gl, target);
-				const n = engine.project.faces, faces = RL.parseFaces(P.sources, n);
+				const n = engine.project.faces, faces = parseFaces(P.sources, n);
 				const bm = /* @__PURE__ */ new Float32Array(128), bc = /* @__PURE__ */ new Float32Array(128), cols = (P.colors || ["#ffffff"]).map(hexToRgb);
 				let k = 0;
 				const T = this.time;
@@ -7214,7 +7226,7 @@ RL.modules.shapes = {
 			},
 			spawnPos(P) {
 				const r = this.rng, A = engine.aspect, n = engine.project.faces;
-				const faces = RL.parseFaces(P.spawnFaces, n);
+				const faces = parseFaces(P.spawnFaces, n);
 				const fx = () => faces.length ? (faces[r.int(faces.length)] + .1 + r() * .8) / n * A : r() * A;
 				const ang = (base) => (base + (r() - .5) * P.spread) * Math.PI / 180;
 				if (P.spawn === "fountain") {
@@ -8415,7 +8427,7 @@ RL.modules.rhythm = {
 			c1: /* @__PURE__ */ new Float32Array(72),
 			c2: /* @__PURE__ */ new Float32Array(72)
 		};
-		const kv = (id, t, P) => L.keys && L.keys[id] && L.keys[id].length ? RL.evalKeys(L.keys[id], t, P[id]) : P[id];
+		const kv = (id, t, P) => L.keys && L.keys[id] && L.keys[id].length ? evalKeys(L.keys[id], t, P[id]) : P[id];
 		return {
 			reset(rng, P) {
 				this.now = 0;
@@ -8450,7 +8462,7 @@ RL.modules.rhythm = {
 				return out;
 			},
 			symbols(P) {
-				const n = engine.project.faces, f = RL.parseFaces(P.symbolFaces, n);
+				const n = engine.project.faces, f = parseFaces(P.symbolFaces, n);
 				return f.length ? f.map((i) => (i + .5) / n) : [P.symbolX];
 			},
 			pool(P) {
@@ -9271,7 +9283,7 @@ RL.modules.floaters = {
 				}];
 			},
 			spawnX(P) {
-				const n = engine.project.faces, f = RL.parseFaces(P.spawnFaces, n), r = this.rng;
+				const n = engine.project.faces, f = parseFaces(P.spawnFaces, n), r = this.rng;
 				if (f.length) return (f[r.int(f.length)] + r()) / n;
 				const a = Math.min(P.spawnMin, P.spawnMax);
 				return a + (Math.max(P.spawnMin, P.spawnMax) - a) * r();
@@ -12216,7 +12228,7 @@ RL.ROBOT_MESH = [
 							a[2] + (b[2] - a[2]) * f
 						];
 					};
-					const listF = RL.parseFaces(P.list, fc);
+					const listF = parseFaces(P.list, fc);
 					const sg = engine.segs, sb = engine.sprites;
 					sg.begin();
 					sb.begin();
@@ -12947,7 +12959,7 @@ RL.ROBOT_MESH = [
 				render(target, P) {
 					clear(gl, target);
 					const proj = engine.project, fc = Math.max(1, proj.faces | 0), A = engine.aspect;
-					let faces = RL.parseFaces(P.sources, fc);
+					let faces = parseFaces(P.sources, fc);
 					if (!faces.length) faces = [Math.floor(fc / 2)];
 					const cols = (P.colors && P.colors.length ? P.colors : ["#ffffff"]).map(hexToRgb);
 					const samp = (x) => {
@@ -13115,7 +13127,7 @@ RL.ROBOT_MESH = [
 RL.presets = {};
 (function() {
 	const L = (type, o, params, react, keys) => {
-		const l = RL.newLayer(type, o);
+		const l = newLayer(type, o);
 		Object.assign(l.params, params || {});
 		Object.assign(l.react, react || {});
 		if (keys) l.keys = keys;
@@ -13134,7 +13146,7 @@ RL.presets = {};
 		});
 		return out;
 	};
-	const base = (o) => Object.assign(RL.defaultProject(), o);
+	const base = (o) => Object.assign(defaultProject(), o);
 	RL.presets["empty"] = {
 		label: "빈 프로젝트",
 		make: () => base({ name: "새 프로젝트" })
@@ -16442,7 +16454,7 @@ var fmtTime = (t) => {
 };
 RL.App = class {
 	constructor() {
-		this.engine = new RL.Engine($("#gl"));
+		this.engine = new Engine($("#gl"));
 		this.audio = new RL.Audio();
 		this.exporter = new RL.Exporter(this);
 		this.view = {
@@ -16492,18 +16504,18 @@ RL.App = class {
 		return Math.max(1, Math.round(this.project.duration * this.project.fps));
 	}
 	normalize(p) {
-		const d = RL.defaultProject();
+		const d = defaultProject();
 		const o = Object.assign(d, p || {});
-		o.bg = Object.assign(RL.defaultProject().bg, (p || {}).bg || {});
-		o.post = Object.assign(RL.defaultProject().post, (p || {}).post || {});
-		o.impact = Object.assign(RL.defaultProject().impact, (p || {}).impact || {});
+		o.bg = Object.assign(defaultProject().bg, (p || {}).bg || {});
+		o.post = Object.assign(defaultProject().post, (p || {}).post || {});
+		o.impact = Object.assign(defaultProject().impact, (p || {}).impact || {});
 		o.markers = (o.markers || []).filter((m) => isFinite(m.t)).sort((a, b) => a.t - b.t);
 		o.speedKeys = o.speedKeys || [];
 		o.layers = (o.layers || []).filter((l) => RL.modules[l.type]).map((l) => {
-			const fresh = RL.newLayer(l.type);
+			const fresh = newLayer(l.type);
 			const out = Object.assign(fresh, l);
-			out.params = Object.assign(RL.newLayer(l.type).params, l.params || {});
-			out.react = Object.assign(RL.defaultReact(), l.react || {});
+			out.params = Object.assign(newLayer(l.type).params, l.params || {});
+			out.react = Object.assign(defaultReact(), l.react || {});
 			out.keys = l.keys || {};
 			return out;
 		});
@@ -16897,7 +16909,7 @@ RL.App = class {
 	}
 	addLayer(type) {
 		const P = this.project;
-		const L = RL.newLayer(type);
+		const L = newLayer(type);
 		let n = 1;
 		while (P.layers.some((x) => x.name === L.name + (n > 1 ? " " + n : ""))) n++;
 		if (n > 1) L.name += " " + n;
@@ -17114,7 +17126,7 @@ RL.App = class {
 			open: true
 		}, h("summary", {}, "깊이·합성", h("small", { text: "2층" })));
 		const bc = h("div", { class: "body" });
-		for (const s of RL.layerCommonSchema) bc.append(this.paramRow(L, s, "common"));
+		for (const s of layerCommonSchema) bc.append(this.paramRow(L, s, "common"));
 		dc.append(bc);
 		box.append(dc);
 		const dr = h("details", {
@@ -17122,7 +17134,7 @@ RL.App = class {
 			open: true
 		}, h("summary", {}, "마커 반응", h("small", { text: "3층" })));
 		const br = h("div", { class: "body" });
-		for (const s of RL.reactSchema) br.append(this.paramRow(L, s, "react"));
+		for (const s of reactSchema) br.append(this.paramRow(L, s, "react"));
 		dr.append(br);
 		box.append(dr);
 	}
@@ -17147,7 +17159,7 @@ RL.App = class {
 		row.append(h("label", { text: s.label }));
 		if (s.type === "range") {
 			const keys = () => L.keys[keyId] || [];
-			const cur = () => keys().length ? RL.evalKeys(keys(), this.t, get()) : get();
+			const cur = () => keys().length ? evalKeys(keys(), this.t, get()) : get();
 			const rng = h("input", {
 				type: "range",
 				min: s.min,
@@ -17435,7 +17447,7 @@ RL.App = class {
 			class: "key",
 			title: "전체 속도 키프레임 (Alt+클릭=전체 삭제)"
 		}, "◇");
-		const cur = () => P.speedKeys.length ? RL.evalKeys(P.speedKeys, this.t, P.speed) : P.speed;
+		const cur = () => P.speedKeys.length ? evalKeys(P.speedKeys, this.t, P.speed) : P.speed;
 		const sync = () => {
 			const v = cur(), act = document.activeElement;
 			if (act !== r) r.value = v;
@@ -17708,7 +17720,7 @@ RL.App = class {
 				g.lineTo(x, c.height);
 				g.stroke();
 			}
-			g.fillText(RL.FACE_NAMES[i], x + 5 * dpr, 13 * dpr);
+			g.fillText(FACE_NAMES[i], x + 5 * dpr, 13 * dpr);
 		}
 	}
 	drawThumb() {
@@ -17777,7 +17789,7 @@ RL.App = class {
 		const L = this.selLayer();
 		if (L) {
 			for (const k in L.keys) if (L.keys[k] && L.keys[k].length) {
-				const sc = RL.modules[L.type].schema.find((x) => x.id === k) || RL.layerCommonSchema.find((x) => "_" + x.id === k);
+				const sc = RL.modules[L.type].schema.find((x) => x.id === k) || layerCommonSchema.find((x) => "_" + x.id === k);
 				rows.push({
 					name: sc ? sc.label : k,
 					ks: L.keys[k],
@@ -18021,10 +18033,10 @@ Object.assign(RL.App.prototype, {
 		}
 		const at = this.sel ? P.layers.findIndex((l) => l.id === this.sel) + 1 : P.layers.length;
 		const add = clip.layers.map((src) => {
-			const fresh = RL.modules[src.type] ? RL.newLayer(src.type) : null;
+			const fresh = RL.modules[src.type] ? newLayer(src.type) : null;
 			if (!fresh) return null;
 			const c = Object.assign(fresh, JSON.parse(JSON.stringify(src)));
-			c.params = Object.assign(RL.newLayer(src.type).params, c.params || {});
+			c.params = Object.assign(newLayer(src.type).params, c.params || {});
 			c.id = "L" + Math.random().toString(36).slice(2, 8);
 			if (P.layers.some((x) => x.name === c.name)) c.name += " (붙여넣기)";
 			return c;
@@ -18562,7 +18574,7 @@ Object.assign(RL.App.prototype, {
 	},
 	newProject() {
 		if (this.project.layers.length && !confirm("새 프로젝트를 만들까요? (Ctrl+Z로 되돌릴 수 있습니다)")) return;
-		const p = RL.defaultProject();
+		const p = defaultProject();
 		p.name = "Untitled";
 		this.loadProject(p, true);
 	},
