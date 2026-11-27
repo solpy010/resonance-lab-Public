@@ -4,6 +4,7 @@ import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
 import * as audioLib from './audio.js';
+import { report } from './core/report.js';
 import * as exportLib from './export.js';
 import * as registry from './core/registry.js';
 // RESONANCE LAB — application UI
@@ -165,7 +166,7 @@ export const App = class {
       const json = JSON.stringify(P(), null, 2), name = exportLib.safeName(P().name) + '.rlab.json';
       if (!this.native) { exportLib.download(new Blob([json], { type: 'application/json' }), name); return; }
       try { const f = await this.native.saveDialog(name, 'json'); if (f) { await this.native.writePath(f, new TextEncoder().encode(json)); this.nativePath = f; this.toast && this.toast('저장: ' + f, 2200); } }
-      catch (err) { alert('저장 실패: ' + err.message); }
+      catch (err) { report('error', '저장 실패', err); alert('저장 실패: ' + err.message); }
     });
     $('#btnOpen').addEventListener('click', async () => {
       if (!this.native) { $('#fileOpen').click(); return; }
@@ -748,7 +749,7 @@ export const App = class {
       if (res && res.path) { this.lastOut = res.path; if (inModal && this.native) $('#exShow').classList.remove('hidden'); }
       if (inModal) $('#exStatus').textContent = st === 'cancelled' ? '취소됨' : '완료' + (res && res.path ? ' — ' + res.path : '');
     }
-    catch (e) { console.error(e); if (inModal) $('#exStatus').textContent = '오류: ' + e.message; else alert('출력 오류: ' + e.message); }
+    catch (e) { console.error(e); report('error', '출력 오류', e); if (inModal) $('#exStatus').textContent = '오류: ' + e.message; else alert('출력 오류: ' + e.message); }
     this.exporting = false;
     $('#busy').classList.add('hidden');
     this.seekAsync(prevFrame);

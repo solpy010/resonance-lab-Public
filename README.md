@@ -15,7 +15,7 @@
 | 방법 | 설명 |
 |---|---|
 | **브라우저** | `app/RESONANCE_LAB.html`을 크롬·엣지로 엽니다. 파일 하나로 동작합니다. |
-| **단일 실행 파일 (Windows)** | [Releases](../../releases)에서 `RESONANCE_LAB_v0.5.7_portable.exe`를 받아 실행합니다. 설치 불필요. ProRes 출력용 FFmpeg 포함. |
+| **단일 실행 파일 (Windows)** | [Releases](../../releases)에서 `RESONANCE_LAB_v0.5.8_portable.exe`를 받아 실행합니다. 설치 불필요. ProRes 출력용 FFmpeg 포함. |
 
 자세한 기능은 [docs/사용법.md](docs/사용법.md)를 보세요.
 
@@ -39,9 +39,9 @@ src/                    전체 소스 (ES 모듈, 평문)
 build.mjs               src/ → app/RESONANCE_LAB.html (Vite, 파일 하나로 실행, 축약 없음)
 vite.config.mjs         개발 서버 설정 (npm run dev)
 app/RESONANCE_LAB.html  빌드 결과 (받아서 바로 실행)
-desktop/                Electron 데스크톱 셸 (main.cjs, preload.cjs, package.json, eb.json)
+desktop/                Electron 데스크톱 셸 — main.cjs(연결), preload.cjs(화면에 주는 기능), lib/(기록·설정·파일 규칙·FFmpeg 출력)
 tools/build_portable.sh Windows 포터블 exe · 폴더형 앱 빌드
-tests/                  회귀 검사 (regress.mjs, golden.json) · 스키마 검사 (schema.mjs)
+tests/                  회귀 (regress.mjs, golden.json) · 스키마 (schema.mjs) · 데스크톱 (desktop.mjs, desktop_e2e.mjs)
 docs/                   사용법 · 실행 안내 · 이미지
 ```
 
@@ -54,6 +54,7 @@ npm run build        # src/ → app/RESONANCE_LAB.html (배포용 단일 파일)
 npm run lint         # 문법·선언 검사
 npm run typecheck    # 타입 검사 (JSDoc + TypeScript, src/types/)
 npm run test:schema  # 레이어 설정 항목·프리셋 값 검사 (수 초)
+npm run test:desktop # 데스크톱 셸 규칙 검사 (Electron 없이, 수 초)
 
 # Windows 포터블 exe (선택) — desktop/ffmpeg/ffmpeg.exe 를 직접 넣은 뒤 (https://ffmpeg.org/download.html, 저장소에는 없음)
 bash tools/build_portable.sh   # → dist/public/RESONANCE_LAB_v<버전>_portable.exe
@@ -62,13 +63,14 @@ bash tools/build_portable.sh   # → dist/public/RESONANCE_LAB_v<버전>_portabl
 ### 회귀 검사
 
 ```bash
-npm test               # 빌드 → 린트 → 타입 → 스키마 → 회귀(프리셋 14개 + 리듬 다중참여 케이스 × 3시점 = 45장)
+npm test               # 빌드 → 린트 → 타입 → 스키마 → 데스크톱 → 회귀(프리셋 14개 + 리듬 다중참여 케이스 × 3시점 = 45장)
 npm run test:update    # 기준 프레임 다시 저장 — 의도한 화면 변경일 때만
 ```
 
 - 같은 조건을 두 번 렌더해 프레임이 같은지(결정론), 기준 프레임(`tests/golden.json`)과 같은지 확인합니다.
 - 렌더는 SwiftShader(CPU)로 해서 PC·그래픽카드와 상관없이 같은 결과가 나옵니다. 크롬·엣지가 설치돼 있어야 하며, 경로는 `CHROME_PATH`로 지정할 수 있습니다.
 - 크롬 버전 차이로 생기는 아주 작은 차이를 허용하려면 `RLAB_LOOSE=1 npm test`.
+- 데스크톱 앱을 실제로 띄워 보는 검사(선택): `ELECTRON_PATH=<electron> FFMPEG_PATH=<ffmpeg> node tests/desktop_e2e.mjs` (Linux 서버는 `xvfb-run` 으로).
 
 앞으로의 구조 개선 계획은 [docs/개발_로드맵.md](docs/개발_로드맵.md)에 있습니다.
 

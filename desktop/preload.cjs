@@ -1,8 +1,8 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
-// Minimal, explicit bridge. The page never gets Node access.
+// 화면에 주는 최소한의 기능 목록. 화면은 Node 기능에 직접 접근하지 못한다.
 contextBridge.exposeInMainWorld('rlabNative', {
-  version: '0.5.6',
+  version: '0.5.8',
   chooseFolder: (title) => ipcRenderer.invoke('dlg:folder', title),
   saveDialog: (name, kind) => ipcRenderer.invoke('dlg:save', name, kind),
   writeFile: (dir, name, bytes) => ipcRenderer.invoke('fs:write', dir, name, bytes),
@@ -17,4 +17,8 @@ contextBridge.exposeInMainWorld('rlabNative', {
   relaunch: (safe) => ipcRenderer.invoke('app:relaunch', safe),
   startFail: (msg) => ipcRenderer.invoke('app:startFail', msg),
   logPath: () => ipcRenderer.invoke('app:logPath'),
+  log: (level, msg) => ipcRenderer.invoke('app:log', level, msg),
+  backup: (label, bytes) => ipcRenderer.invoke('backup:save', label, bytes),
+  backupDir: () => ipcRenderer.invoke('backup:dir'),
+  openDir: (which) => ipcRenderer.invoke('shell:openDir', which),
 });

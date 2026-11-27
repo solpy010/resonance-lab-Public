@@ -1,6 +1,7 @@
 // 진입점 — 모듈을 예전 이어 붙이기와 같은 순서로 불러온다.
 // 레이어 모듈 import 순서 = 레이어 추가 버튼 순서이므로 바꾸지 말 것.
 import './style.css';
+import './core/report.js';
 import './core/registry.js';
 import './gl.js';
 import './batch.js';

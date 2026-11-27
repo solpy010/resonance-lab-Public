@@ -4,6 +4,7 @@ import { RL } from './core/rl.js';
 import { $, h } from './ui.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import { report } from './core/report.js';
 import * as exportLib from './export.js';
 import * as uiApp from './ui.js';
 import * as registry from './core/registry.js';
@@ -181,6 +182,7 @@ Object.assign(uiApp.App.prototype, {
         { label: '마커 임팩트 프레임', check: () => P().impact.enabled, fn: () => { P().impact.enabled = !P().impact.enabled; A.renderTimePanel(); A.save(); } },
         '-',
         { sub: '새 키프레임 이징' }, ...easeItems,
+        ...(this.native && this.native.openDir ? ['-', { label: '자동 보관 폴더 열기 (씬 백업 교체·삭제 전 상태)', fn: () => A.native.openDir('backups') }, { label: '기록(로그) 폴더 열기', fn: () => A.native.openDir('log') }] : []),
         ...(this.native && this.native.relaunch ? ['-', { label: 'GPU 호환 모드(소프트웨어 렌더링) — 다시 시작', check: () => A.gpuMode === 'safe', fn: () => { if (confirm(A.gpuMode === 'safe' ? '일반 GPU 모드로 다시 시작할까요?' : '호환 모드로 다시 시작할까요? (그래픽 가속이 안 되는 PC용, 느림)')) { A.flushHistory(); A.native.relaunch(A.gpuMode !== 'safe'); } } }] : []),
       ]],
       ['도움말', [
@@ -459,7 +461,7 @@ Object.assign(uiApp.App.prototype, {
           { label: '뒤로 이동 ▶', dis: i === this.shelf.length - 1, fn: () => mv(1) },
           '-',
           { label: '삭제', fn: () => { if (!confirm('"' + s.name + '" 씬 백업을 삭제할까요?')) return; this.shelf.splice(i, 1); if (this.shelfActive >= i) this.shelfActive--; this.persistShelf(); this.renderShelf(); } },
-          { label: '모든 씬 지우기', fn: () => { if (!confirm('씬 백업 ' + this.shelf.length + '개를 모두 지울까요? (먼저 액트 저장을 권장)')) return; this.shelf = []; this.shelfActive = -1; this.persistShelf(); this.renderShelf(); } },
+          { label: '모든 씬 지우기', fn: () => { if (!confirm('씬 백업 ' + this.shelf.length + '개를 모두 지울까요? (지우기 전 상태는 자동 보관됩니다)')) return; this.backupShelf('모두 지우기 전'); this.shelf = []; this.shelfActive = -1; this.persistShelf(); this.renderShelf(); } },
         ]);
       });
       box.append(el);
@@ -472,7 +474,20 @@ Object.assign(uiApp.App.prototype, {
     const json = JSON.stringify(act), name = exportLib.safeName(this.project.name || 'act') + '.rlab-act.json';
     if (!this.native) { exportLib.download(new Blob([json], { type: 'application/json' }), name); return; }
     try { const f = await this.native.saveDialog(name, 'json'); if (f) { await this.native.writePath(f, new TextEncoder().encode(json)); this.toast('액트 저장: ' + f, 2500); } }
-    catch (err) { alert('액트 저장 실패: ' + err.message); }
+    catch (err) { report('error', '액트 저장 실패', err); alert('액트 저장 실패: ' + err.message); }
+  },
+  // 씬 백업을 바꾸거나 지우기 직전 상태를 남긴다 — 데스크톱: 자동 보관 폴더(최근 30개), 브라우저: 직전 1개(rlab.shelf.prev)
+  backupShelf(why) {
+    if (!this.shelf.length) return;
+    const act = { type: 'rlab-act', version: 1, name: why, saved: new Date().toISOString(), active: this.shelfActive, scenes: this.shelf };
+    const json = JSON.stringify(act);
+    if (this.native && this.native.backup) {
+      this.native.backup(why, new TextEncoder().encode(json))
+        .then(f => { report('info', '씬 백업 자동 보관', act.scenes.length + '개', f); this.toast('이전 씬 백업 ' + act.scenes.length + '개 자동 보관 — 옵션 → 자동 보관 폴더 열기', 3500); })
+        .catch(e => { report('error', '자동 보관 실패', e); this.toast('⚠ 자동 보관 실패: ' + e.message, 4000); });
+    } else {
+      try { localStorage.setItem('rlab.shelf.prev', json); } catch (e) { report('warn', '직전 씬 백업 보관 실패(저장 공간 부족)'); }
+    }
   },
   async openAct() {
     if (!this.native) { $('#fileAct').click(); return; }
@@ -484,7 +499,8 @@ Object.assign(uiApp.App.prototype, {
       if (o.layers) { this.loadProject(o); this.toast('프로젝트 파일이라 현재 씬으로 열었습니다'); return; }
       alert('RESONANCE LAB 액트 파일이 아닙니다.'); return;
     }
-    if (this.shelf.length && !confirm('현재 씬 백업 ' + this.shelf.length + '개를 이 액트(' + o.scenes.length + '씬)로 바꿀까요?')) return;
+    if (this.shelf.length && !confirm('현재 씬 백업 ' + this.shelf.length + '개를 이 액트(' + o.scenes.length + '씬)로 바꿀까요?\n(지금 씬 백업은 자동 보관됩니다)')) return;
+    this.backupShelf('액트 열기 전');
     this.shelf = o.scenes; this.shelfActive = -1; this.persistShelf(); this.renderShelf();
     this.shelfLoad(0);
     this.toast('액트 열기: ' + o.scenes.length + '씬', 2000);

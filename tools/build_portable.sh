@@ -12,7 +12,7 @@ cd "$ROOT"
 if [ "$MODE" = "--work" ]; then node build.mjs --work; HTML="dist/RESONANCE_LAB_work.html"; OUT="$ROOT/dist/work"; else node build.mjs; HTML="app/RESONANCE_LAB.html"; OUT="$ROOT/dist/public"; fi
 B="$ROOT/build/desktop"
 rm -rf "$B" && mkdir -p "$B/app" "$B/ffmpeg"
-cp desktop/main.cjs desktop/preload.cjs desktop/eb.json "$B/"
+cp desktop/main.cjs desktop/preload.cjs desktop/eb.json "$B/" && cp -r desktop/lib "$B/lib"
 cp "$HTML" "$B/app/RESONANCE_LAB.html"
 if [ -f desktop/ffmpeg/ffmpeg.exe ]; then cp desktop/ffmpeg/ffmpeg.exe "$B/ffmpeg/"; else echo "(ffmpeg.exe 없음 — ProRes 출력 제외)"; fi
 node -e '
