@@ -517,7 +517,7 @@ Object.assign(uiApp.App.prototype, {
         const f = inp.files[0]; inp.value = ''; if (!f) { res(null); return; }
         $('#busy').classList.remove('hidden'); $('#busyText').textContent = '소스 변환 중… ' + f.name; $('#busyBar').style.width = '10%';
         try {
-          const meta = f.type.startsWith('video') ? await RL.videoToAtlas(f, p => { $('#busyBar').style.width = (p * 100) + '%'; }) : await RL.imageToAsset(f);
+          const meta = f.type.startsWith('video') ? await videoToAtlas(f, p => { $('#busyBar').style.width = (p * 100) + '%'; }) : await imageToAsset(f);
           const id = 'A' + Math.random().toString(36).slice(2, 8);
           this.project.assets = this.project.assets || {};
           this.project.assets[id] = Object.assign({ name: f.name.replace(/\.[^.]+$/, '') }, meta);
@@ -533,7 +533,7 @@ Object.assign(uiApp.App.prototype, {
   },
 });
 
-RL.imageToAsset = async function (file) {
+export const imageToAsset = async function (file) {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('이미지 디코딩 실패')); i.src = url; });
@@ -546,7 +546,7 @@ RL.imageToAsset = async function (file) {
 };
 
 // short video → sprite atlas (≤48 frames, cell ≤256px). Black background becomes transparent (luma) by default.
-RL.videoToAtlas = async function (file, progress) {
+export const videoToAtlas = async function (file, progress) {
   const url = URL.createObjectURL(file);
   try {
     const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
@@ -700,3 +700,6 @@ Object.assign(uiApp.App.prototype, {
     if (!this.playing) { clearTimeout(this._resimT); this._resimT = setTimeout(() => { const f = this.engine.frame; this.engine.reset(); this.seekAsync(f); }, 300); }
   },
 });
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { imageToAsset, videoToAtlas });

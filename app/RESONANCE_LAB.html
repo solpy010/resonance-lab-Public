@@ -19338,9 +19338,9 @@ Object.assign(App.prototype, {
 				$("#busyText").textContent = "소스 변환 중… " + f.name;
 				$("#busyBar").style.width = "10%";
 				try {
-					const meta = f.type.startsWith("video") ? await RL.videoToAtlas(f, (p) => {
+					const meta = f.type.startsWith("video") ? await videoToAtlas(f, (p) => {
 						$("#busyBar").style.width = p * 100 + "%";
-					}) : await RL.imageToAsset(f);
+					}) : await imageToAsset(f);
 					const id = "A" + Math.random().toString(36).slice(2, 8);
 					this.project.assets = this.project.assets || {};
 					this.project.assets[id] = Object.assign({ name: f.name.replace(/\.[^.]+$/, "") }, meta);
@@ -19360,7 +19360,7 @@ Object.assign(App.prototype, {
 		});
 	}
 });
-RL.imageToAsset = async function(file) {
+var imageToAsset = async function(file) {
 	const url = URL.createObjectURL(file);
 	try {
 		const img = await new Promise((ok, bad) => {
@@ -19388,7 +19388,7 @@ RL.imageToAsset = async function(file) {
 		URL.revokeObjectURL(url);
 	}
 };
-RL.videoToAtlas = async function(file, progress) {
+var videoToAtlas = async function(file, progress) {
 	const url = URL.createObjectURL(file);
 	try {
 		const v = document.createElement("video");
@@ -19701,6 +19701,10 @@ Object.assign(App.prototype, {
 			}, 300);
 		}
 	}
+});
+Object.assign(RL, {
+	imageToAsset,
+	videoToAtlas
 });</script>
   <style rel="stylesheet" crossorigin>:root{
   --bg:#0c0d10; --panel:#131519; --panel2:#181b20; --line:#23272e; --line2:#2d323a;
