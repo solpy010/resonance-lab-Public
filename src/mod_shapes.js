@@ -4,7 +4,7 @@ import * as webgl from './gl.js';
 import * as eng from './engine.js';
 // SHAPES — 중력·반발·마찰에 반응하는 기하 도형 물리 (도형 간 충돌 + 다른 레이어 라인아트와 충돌)
 
-RL.SHAPE_NAMES = { '원': 1, '사각': 0, '삼각': 2, '고리': 3, '육각': 4, '십자': 5, '마름모': 6, circle: 1, square: 0, triangle: 2, ring: 3, hex: 4, cross: 5, diamond: 6 };
+export const SHAPE_NAMES = { '원': 1, '사각': 0, '삼각': 2, '고리': 3, '육각': 4, '십자': 5, '마름모': 6, circle: 1, square: 0, triangle: 2, ring: 3, hex: 4, cross: 5, diamond: 6 };
 
 RL.modules.shapes = {
   label: '기하 물리', icon: '◆', blend: 'over',
@@ -52,7 +52,7 @@ RL.modules.shapes = {
       ang = new Float32Array(n); av = new Float32Array(n); rad = new Float32Array(n); typ = new Int8Array(n); ci = new Float32Array(n);
       age = new Float32Array(n); life = new Float32Array(n); alive = new Uint8Array(n);
     }
-    const kinds = (P) => { const k = String(P.shapeList).split(/[\s,]+/).map(s => RL.SHAPE_NAMES[s]).filter(v => v !== undefined); return k.length ? k : [1]; };
+    const kinds = (P) => { const k = String(P.shapeList).split(/[\s,]+/).map(s => SHAPE_NAMES[s]).filter(v => v !== undefined); return k.length ? k : [1]; };
     const inst = {
       reset(rng, P) {
         this.rng = rng; alloc(Math.round(P.max)); this.cursor = 0; this.acc = 0; this.time = 0;
@@ -226,3 +226,6 @@ RL.modules.shapes = {
     return inst;
   },
 };
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { SHAPE_NAMES });

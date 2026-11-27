@@ -6788,7 +6788,7 @@ RL.modules.surface = {
 	}
 };
 // src/mod_shapes.js
-RL.SHAPE_NAMES = {
+var SHAPE_NAMES = {
 	"원": 1,
 	"사각": 0,
 	"삼각": 2,
@@ -7182,7 +7182,7 @@ RL.modules.shapes = {
 			alive = new Uint8Array(n);
 		}
 		const kinds = (P) => {
-			const k = String(P.shapeList).split(/[\s,]+/).map((s) => RL.SHAPE_NAMES[s]).filter((v) => v !== void 0);
+			const k = String(P.shapeList).split(/[\s,]+/).map((s) => SHAPE_NAMES[s]).filter((v) => v !== void 0);
 			return k.length ? k : [1];
 		};
 		return {
@@ -7485,6 +7485,7 @@ RL.modules.shapes = {
 		};
 	}
 };
+Object.assign(RL, { SHAPE_NAMES });
 // src/rhythm/mod_rhythm.js
 var FX_CATS = [
 	["burst", "① 섬광·방사"],
