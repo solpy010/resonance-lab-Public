@@ -9,5 +9,7 @@ declare global {
     rlabNative?: NativeBridge;
     webkitAudioContext?: typeof AudioContext;
     showDirectoryPicker?: (opts?: any) => Promise<any>;
+    /** 화면 앱 인스턴스 (디버그·자동 검사용) */
+    app: import('../app/App.js').App;
   }
 }

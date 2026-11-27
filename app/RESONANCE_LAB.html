@@ -16489,7 +16489,7 @@ Object.assign(RL, {
 	safeName,
 	Exporter
 });
-// src/ui.js
+// src/app/dom.js
 var $ = (s, r) => (r || document).querySelector(s);
 var $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 var h = (tag, attrs, ...kids) => {
@@ -16507,506 +16507,9 @@ var fmtTime = (t) => {
 	const m = Math.floor(t / 60), s = t - m * 60;
 	return String(m).padStart(2, "0") + ":" + s.toFixed(2).padStart(5, "0");
 };
-var App = class {
-	constructor() {
-		this.engine = new Engine($("#gl"));
-		this.audio = new Audio();
-		this.exporter = new Exporter(this);
-		this.view = {
-			guides: true,
-			thumb: false
-		};
-		this.engine.view.checker = true;
-		this.playing = false;
-		this.sel = null;
-		this.exporting = false;
-		this.seekToken = 0;
-		this.fpsCount = 0;
-		this.fpsTime = performance.now();
-		this.fpsShown = 0;
-		this.native = window.rlabNative || null;
-		if (this.native) {
-			for (const e of $$(".native-only")) e.classList.remove("hidden");
-			$("#ver").textContent = "v" + this.native.version + " Desktop";
-			document.title = "RESONANCE LAB Desktop";
-		}
-		this.buildStatic();
-		this.bind();
-		this.initV4();
-		let p = null;
-		try {
-			const s = localStorage.getItem("rlab.autosave");
-			if (s) p = JSON.parse(s);
-		} catch (e) {
-			p = null;
-		}
-		this.loadProject(p || presets.s1_2.make(), !p);
-		this.historyReset();
-		new ResizeObserver(() => {
-			this.layoutStage();
-			this.drawTimeline();
-		}).observe($("#viewport"));
-		new ResizeObserver(() => this.drawTimeline()).observe($("#timeline"));
-		requestAnimationFrame((t) => this.tick(t));
-	}
-	get project() {
-		return this.engine.project;
-	}
-	get t() {
-		return this.engine.frame / this.project.fps;
-	}
-	get totalFrames() {
-		return Math.max(1, Math.round(this.project.duration * this.project.fps));
-	}
-	normalize(p) {
-		const d = defaultProject();
-		const o = Object.assign(d, p || {});
-		o.bg = Object.assign(defaultProject().bg, (p || {}).bg || {});
-		o.post = Object.assign(defaultProject().post, (p || {}).post || {});
-		o.impact = Object.assign(defaultProject().impact, (p || {}).impact || {});
-		o.markers = (o.markers || []).filter((m) => isFinite(m.t)).sort((a, b) => a.t - b.t);
-		o.speedKeys = o.speedKeys || [];
-		o.layers = (o.layers || []).filter((l) => modules[l.type]).map((l) => {
-			const fresh = newLayer(l.type);
-			const out = Object.assign(fresh, l);
-			out.params = Object.assign(newLayer(l.type).params, l.params || {});
-			out.react = Object.assign(defaultReact(), l.react || {});
-			out.keys = l.keys || {};
-			return out;
-		});
-		return o;
-	}
-	loadProject(p, fromPreset, keepSel) {
-		this.pause();
-		this.kfSel = [];
-		if (!this._restoring && this.flushHistory && this.hist) this.flushHistory();
-		const P = this.normalize(p);
-		this.engine.load(P);
-		this.sel = keepSel && P.layers.some((l) => l.id === keepSel) ? keepSel : P.layers.length ? P.layers[P.layers.length - 1].id : null;
-		this.syncHeader();
-		this.renderLayerList();
-		this.renderInspector();
-		this.renderBg();
-		this.renderPost();
-		this.renderTimePanel();
-		this.afterRebuild();
-		this.updateMarkerCount();
-		this.save(true);
-	}
-	afterRebuild() {
-		this.layoutStage();
-		this.engine.reset();
-		this.engine.stepFrame();
-		this.needsRender = true;
-		this.drawTimeline();
-	}
-	save(now) {
-		if (now && this.flushHistory) {
-			this._saveT = 1;
-			this.flushHistory();
-			return;
-		}
-		clearTimeout(this._saveT);
-		this._saveT = setTimeout(() => {
-			const j = JSON.stringify(this.project);
-			this.historyCommit(j);
-			try {
-				localStorage.setItem("rlab.autosave", j);
-			} catch (e) {}
-		}, 450);
-	}
-	buildStatic() {
-		const ps = $("#preset");
-		ps.append(h("option", {
-			value: "",
-			text: "— 씬 프리셋 불러오기 —"
-		}));
-		for (const k in presets) ps.append(h("option", {
-			value: k,
-			text: presets[k].label
-		}));
-		const add = $("#addBtns");
-		for (const k in modules) {
-			const M = modules[k];
-			add.append(h("button", {
-				title: M.label + " 레이어 추가",
-				onclick: () => this.addLayer(k)
-			}, h("span", { text: M.icon }), M.label));
-		}
-	}
-	syncHeader() {
-		const P = this.project;
-		$("#projName").value = P.name;
-		const key = P.width + "x" + P.height;
-		const opt = $$("#size option").find((o) => o.value === key);
-		$("#size").value = opt ? key : "custom";
-		$("#customSize").classList.toggle("hidden", !!opt);
-		$("#cw").value = P.width;
-		$("#ch").value = P.height;
-		$("#faces").value = P.faces;
-		$("#fps").value = String(P.fps);
-		$("#dur").value = P.duration;
-		$("#seed").value = P.seed;
-		$("#scale").value = String(this.engine.scale);
-		for (const b of $$(".tg")) {
-			const k = b.dataset.view;
-			b.classList.toggle("on", k === "wrap" ? !!P.wrap : k in this.view ? !!this.view[k] : !!this.engine.view[k]);
-		}
-		$("#exTo").value = P.duration;
-	}
-	bind() {
-		const P = () => this.project;
-		$("#projName").addEventListener("input", (e) => {
-			P().name = e.target.value;
-			this.save();
-		});
-		$("#preset").addEventListener("change", (e) => {
-			const k = e.target.value;
-			e.target.value = "";
-			if (!k) return;
-			if (P().layers.length && !confirm("현재 작업을 프리셋으로 바꿀까요? 저장하지 않은 변경은 사라집니다.")) return;
-			this.loadProject(presets[k].make(), true);
-		});
-		$("#size").addEventListener("change", (e) => {
-			const v = e.target.value;
-			$("#customSize").classList.toggle("hidden", v !== "custom");
-			if (v === "custom") return;
-			const [w, hh] = v.split("x").map(Number);
-			this.setSize(w, hh);
-		});
-		const cs = () => this.setSize(Math.max(64, +$("#cw").value | 0), Math.max(64, +$("#ch").value | 0));
-		$("#cw").addEventListener("change", cs);
-		$("#ch").addEventListener("change", cs);
-		$("#faces").addEventListener("change", (e) => {
-			P().faces = Math.max(1, Math.min(12, +e.target.value | 0));
-			this.resetSim();
-		});
-		$("#fps").addEventListener("change", (e) => {
-			P().fps = +e.target.value;
-			this.resetSim();
-		});
-		$("#dur").addEventListener("change", (e) => {
-			P().duration = Math.max(1, +e.target.value);
-			this.drawTimeline();
-			this.save();
-		});
-		$("#seed").addEventListener("change", (e) => {
-			P().seed = +e.target.value | 0;
-			this.resetSim();
-		});
-		$("#seedNew").addEventListener("click", () => {
-			P().seed = Math.floor(Math.random() * 99999);
-			$("#seed").value = P().seed;
-			this.resetSim();
-		});
-		$("#scale").addEventListener("change", (e) => {
-			this.engine.scale = +e.target.value;
-			const f = this.engine.frame;
-			this.engine.rebuild();
-			this.afterRebuild();
-			this.seekAsync(f);
-		});
-		for (const b of $$(".tg")) b.addEventListener("click", () => {
-			const k = b.dataset.view;
-			if (k === "wrap") {
-				this.setWrap(!P().wrap);
-				return;
-			}
-			if (k in this.view) this.view[k] = !this.view[k];
-			else this.engine.view[k] = !this.engine.view[k];
-			b.classList.toggle("on");
-			$("#thumbBox").classList.toggle("hidden", !this.view.thumb);
-			this.drawGuides();
-			this.needsRender = true;
-		});
-		$("#btnSave").addEventListener("click", async () => {
-			const json = JSON.stringify(P(), null, 2), name = safeName(P().name) + ".rlab.json";
-			if (!this.native) {
-				download(new Blob([json], { type: "application/json" }), name);
-				return;
-			}
-			try {
-				const f = await this.native.saveDialog(name, "json");
-				if (f) {
-					await this.native.writePath(f, new TextEncoder().encode(json));
-					this.nativePath = f;
-					this.toast && this.toast("저장: " + f, 2200);
-				}
-			} catch (err) {
-				report("error", "저장 실패", err);
-				alert("저장 실패: " + err.message);
-			}
-		});
-		$("#btnOpen").addEventListener("click", async () => {
-			if (!this.native) {
-				$("#fileOpen").click();
-				return;
-			}
-			try {
-				const r = await this.native.openProject();
-				if (r) {
-					const o = JSON.parse(r.text);
-					if (o.type === "rlab-act") this.loadAct(r.text, r.path);
-					else this.loadProject(o);
-				}
-			} catch (err) {
-				alert("프로젝트 파일을 읽을 수 없습니다: " + err.message);
-			}
-		});
-		$("#exShow").addEventListener("click", () => {
-			if (this.native && this.lastOut) this.native.showItem(this.lastOut);
-		});
-		$("#fileOpen").addEventListener("change", async (e) => {
-			const f = e.target.files[0];
-			e.target.value = "";
-			if (!f) return;
-			try {
-				const tx = await f.text(), o = JSON.parse(tx);
-				if (o.type === "rlab-act") this.loadAct(tx, f.name);
-				else this.loadProject(o);
-			} catch (err) {
-				alert("프로젝트 파일을 읽을 수 없습니다: " + err.message);
-			}
-		});
-		$("#btnStill").addEventListener("click", () => this.runExport(() => this.exporter.stillFrame(Math.max(0, this.engine.frame - 1)), "현재 프레임 저장 중"));
-		$("#btnRender").addEventListener("click", () => this.openModal());
-		for (const b of $$("#bgMode button")) b.addEventListener("click", () => {
-			P().bg.mode = b.dataset.v;
-			this.renderBg();
-			this.needsRender = true;
-			this.save();
-		});
-		$("#bgColor").addEventListener("input", (e) => {
-			P().bg.color = e.target.value;
-			this.renderBg();
-			this.needsRender = true;
-			this.save();
-		});
-		$("#bgHex").addEventListener("change", (e) => {
-			let v = e.target.value.trim();
-			if (!v.startsWith("#")) v = "#" + v;
-			if (/^#[0-9a-f]{6}$/i.test(v)) {
-				P().bg.color = v.toLowerCase();
-				this.renderBg();
-				this.needsRender = true;
-				this.save();
-			}
-		});
-		const hsv = () => {
-			const c = hsvToRgb(+$("#bgH").value, +$("#bgS").value, +$("#bgV").value);
-			P().bg.color = rgbToHex(...c);
-			this.renderBg(true);
-			this.needsRender = true;
-			this.save();
-		};
-		[
-			"#bgH",
-			"#bgS",
-			"#bgV"
-		].forEach((s) => $(s).addEventListener("input", hsv));
-		for (const b of $$("#chromaPreset button")) b.addEventListener("click", () => {
-			P().bg.chroma = b.dataset.v;
-			this.renderBg();
-			this.needsRender = true;
-			this.save();
-		});
-		$("#chromaColor").addEventListener("input", (e) => {
-			P().bg.chroma = e.target.value;
-			this.renderBg();
-			this.needsRender = true;
-			this.save();
-		});
-		$("#tPlay").addEventListener("click", () => this.togglePlay());
-		$("#tStart").addEventListener("click", () => {
-			this.pause();
-			this.seekAsync(1);
-		});
-		$("#tNext").addEventListener("click", () => {
-			this.pause();
-			this.seekAsync(this.engine.frame + 1);
-		});
-		$("#tPrev").addEventListener("click", () => {
-			this.pause();
-			this.seekAsync(Math.max(1, this.engine.frame - 1));
-		});
-		$("#aLoad").addEventListener("click", () => $("#fileAudio").click());
-		$("#fileAudio").addEventListener("change", async (e) => {
-			const f = e.target.files[0];
-			e.target.value = "";
-			if (!f) return;
-			try {
-				await this.audio.load(f);
-				$("#aName").textContent = f.name + " · " + this.audio.buffer.duration.toFixed(1) + "초";
-				if (this.audio.buffer.duration > P().duration && confirm("프로젝트 길이를 음원 길이(" + Math.ceil(this.audio.buffer.duration) + "초)에 맞출까요?")) {
-					P().duration = Math.ceil(this.audio.buffer.duration);
-					$("#dur").value = P().duration;
-				}
-				this.drawTimeline();
-			} catch (err) {
-				alert("오디오를 읽을 수 없습니다: " + err.message);
-			}
-		});
-		$("#aDetect").addEventListener("click", () => {
-			if (!this.audio.buffer) {
-				alert("먼저 오디오를 불러오세요.");
-				return;
-			}
-			const m = this.audio.onsets({
-				sensitivity: +$("#aSens").value,
-				minGap: +$("#aGap").value,
-				band: $("#aBand").value
-			});
-			P().markers = m;
-			this.markersChanged();
-		});
-		$("#bpmGrid").addEventListener("click", () => {
-			const bpm = +$("#bpm").value, from = +$("#bpmFrom").value;
-			if (!(bpm > 0)) return;
-			for (let t = from; t < P().duration; t += 60 / bpm) P().markers.push({
-				t: +t.toFixed(4),
-				s: 1
-			});
-			this.markersChanged();
-		});
-		$("#mTap").addEventListener("click", () => this.tap());
-		$("#mClear").addEventListener("click", () => {
-			if (!P().markers.length || confirm("마커 " + P().markers.length + "개를 모두 지울까요?")) {
-				P().markers = [];
-				this.markersChanged();
-			}
-		});
-		const tl = $("#timeline");
-		const tAt = (e) => {
-			const r = tl.getBoundingClientRect();
-			return Math.max(0, Math.min(P().duration, (e.clientX - r.left - 8) / (r.width - 16) * P().duration));
-		};
-		this._tAt = tAt;
-		tl.addEventListener("mousedown", (e) => this.tlDown(e));
-		window.addEventListener("mousemove", (e) => this.tlMove(e));
-		window.addEventListener("mouseup", (e) => this.tlUp(e));
-		tl.addEventListener("dblclick", (e) => {
-			const g = this.tlGeom(), y = this.tlLocalY(e), hit = this.kfAt(e);
-			if (hit) {
-				this.deleteKeys([hit]);
-				return;
-			}
-			if (y >= g.wy && y <= g.wy + g.wh) {
-				P().markers.push({
-					t: +tAt(e).toFixed(4),
-					s: 1
-				});
-				this.markersChanged();
-			}
-		});
-		tl.addEventListener("contextmenu", (e) => {
-			e.preventDefault();
-			const hit = this.kfAt(e);
-			if (hit) {
-				this.deleteKeys([hit]);
-				return;
-			}
-			const t = tAt(e), tol = 8 / (tl.getBoundingClientRect().width - 16) * P().duration;
-			let bi = -1, bd = tol;
-			P().markers.forEach((m, i) => {
-				const d = Math.abs(m.t - t);
-				if (d < bd) {
-					bd = d;
-					bi = i;
-				}
-			});
-			if (bi >= 0) {
-				P().markers.splice(bi, 1);
-				this.markersChanged();
-			}
-		});
-		for (const b of $$("#exFmt button")) b.addEventListener("click", () => {
-			this.exFmt = b.dataset.v;
-			this.updateModal();
-		});
-		$("#exCancel").addEventListener("click", () => {
-			if (this.exporting) this.exporter.cancel = true;
-			else $("#modal").classList.add("hidden");
-		});
-		$("#exGo").addEventListener("click", () => this.startExport());
-		["#exFrom", "#exTo"].forEach((s) => $(s).addEventListener("input", () => this.updateModal()));
-		window.addEventListener("keydown", (e) => {
-			if (this.shortcut(e)) return;
-			if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && document.activeElement.type !== "range" && document.activeElement.type !== "checkbox") return;
-			if (e.code === "Space") {
-				e.preventDefault();
-				this.togglePlay();
-			} else if (e.code === "ArrowRight") {
-				this.pause();
-				this.seekAsync(this.engine.frame + (e.shiftKey ? 10 : 1));
-			} else if (e.code === "ArrowLeft") {
-				this.pause();
-				this.seekAsync(Math.max(1, this.engine.frame - (e.shiftKey ? 10 : 1)));
-			} else if (e.code === "Home") {
-				this.pause();
-				this.seekAsync(1);
-			} else if (e.code === "KeyT") this.tap();
-		});
-	}
-	setSize(w, hh) {
-		const P = this.project;
-		P.width = w - w % 2;
-		P.height = hh - hh % 2;
-		this.engine.rebuild();
-		this.afterRebuild();
-		this.syncHeader();
-		this.save();
-	}
-	resetSim() {
-		const f = this.engine.frame;
-		this.engine.reset();
-		this.afterRebuild();
-		this.seekAsync(f);
-		this.save();
-	}
-	addLayer(type) {
-		const P = this.project;
-		const L = newLayer(type);
-		let n = 1;
-		while (P.layers.some((x) => x.name === L.name + (n > 1 ? " " + n : ""))) n++;
-		if (n > 1) L.name += " " + n;
-		P.layers.push(L);
-		this.engine.syncLayers();
-		this.sel = L.id;
-		this.renderLayerList();
-		this.renderInspector();
-		this.needsRender = true;
-		this.updateBgWarn();
-		this.save(true);
-	}
-	layerAction(id, act) {
-		const P = this.project, i = P.layers.findIndex((l) => l.id === id);
-		if (i < 0) return;
-		const L = P.layers[i];
-		if (act === "toggle") L.enabled = !L.enabled;
-		else if (act === "up" && i < P.layers.length - 1) [P.layers[i], P.layers[i + 1]] = [P.layers[i + 1], P.layers[i]];
-		else if (act === "down" && i > 0) [P.layers[i], P.layers[i - 1]] = [P.layers[i - 1], P.layers[i]];
-		else if (act === "dup") {
-			const c = JSON.parse(JSON.stringify(L));
-			c.id = "L" + Math.random().toString(36).slice(2, 8);
-			c.name += " 복제";
-			P.layers.splice(i + 1, 0, c);
-			this.sel = c.id;
-		} else if (act === "del") {
-			if (!confirm("\"" + L.name + "\" 레이어를 삭제할까요?")) return;
-			P.layers.splice(i, 1);
-			if (this.sel === id) this.sel = P.layers.length ? P.layers[P.layers.length - 1].id : null;
-		}
-		this.engine.syncLayers();
-		if (act === "dup") {
-			const EL = this.engine.layers.find((x) => x.id === this.sel);
-			if (EL) EL.needsReset = true;
-		}
-		this.renderLayerList();
-		this.renderInspector();
-		this.needsRender = true;
-		this.updateBgWarn();
-		this.save(true);
-	}
+// src/app/inspector.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var inspector = {
 	renderLayerList() {
 		const ul = $("#layerList");
 		ul.innerHTML = "";
@@ -17061,10 +16564,10 @@ var App = class {
 			}, "✕"));
 			ul.append(li);
 		}
-	}
+	},
 	selLayer() {
 		return this.project.layers.find((l) => l.id === this.sel);
-	}
+	},
 	renderInspector() {
 		const box = $("#inspector");
 		box.innerHTML = "";
@@ -17193,7 +16696,7 @@ var App = class {
 		for (const s of reactSchema) br.append(this.paramRow(L, s, "react"));
 		dr.append(br);
 		box.append(dr);
-	}
+	},
 	paramRow(L, s, where) {
 		const keyId = where === "common" ? "_" + s.id : s.id;
 		const get = () => where === "params" ? L.params[s.id] : where === "common" ? L[s.id] : L.react[s.id];
@@ -17375,7 +16878,7 @@ var App = class {
 			text: s.hint
 		}));
 		return frag;
-	}
+	},
 	upsertKey(L, keyId, v) {
 		const ks = L.keys[keyId] = L.keys[keyId] || [];
 		const t = +this.t.toFixed(4);
@@ -17389,11 +16892,11 @@ var App = class {
 			});
 			ks.sort((a, b) => a.t - b.t);
 		}
-	}
+	},
 	refreshInspectorValues() {
 		if (this.paramRows) for (const f of this.paramRows) f();
 		if (this.timeRows) for (const f of this.timeRows) f();
-	}
+	},
 	paramChanged(s, where) {
 		this.needsRender = true;
 		if (!this.playing && (where === "react" || where === "params" && [
@@ -17418,7 +16921,7 @@ var App = class {
 				this.seekAsync(f);
 			}, 350);
 		}
-	}
+	},
 	renderBg(fromHsv) {
 		const bg = this.project.bg;
 		for (const b of $$("#bgMode button")) b.classList.toggle("on", b.dataset.v === bg.mode);
@@ -17439,7 +16942,7 @@ var App = class {
 		$("#chromaColor").value = bg.chroma;
 		for (const b of $$("#chromaPreset button")) b.classList.toggle("on", b.dataset.v === bg.chroma);
 		this.updateBgWarn();
-	}
+	},
 	updateBgWarn() {
 		const P = this.project;
 		const risky = P.bg.mode === "chroma" && (P.post.glow > .01 || P.layers.some((l) => l.enabled && (l.blend !== "over" || [
@@ -17449,7 +16952,7 @@ var App = class {
 			"wave"
 		].includes(l.type))));
 		$("#bgWarn").classList.toggle("hidden", !risky);
-	}
+	},
 	sliderRow(label, obj, k, min, max, step, onCh, keyHost) {
 		const row = h("div", { class: "sl" + (keyHost ? " k" : "") });
 		const r = h("input", {
@@ -17469,7 +16972,7 @@ var App = class {
 		});
 		row.append(h("span", { text: label }), r, em);
 		return row;
-	}
+	},
 	renderPost() {
 		const box = $("#postPanel");
 		box.innerHTML = "";
@@ -17479,6 +16982,10 @@ var App = class {
 			text: "글로우는 요소에서만 생기며, 투명 출력 시 알파에 포함됩니다."
 		}));
 	}
+};
+// src/app/transport.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var transport = {
 	renderTimePanel() {
 		const box = $("#timePanel");
 		box.innerHTML = "";
@@ -17598,14 +17105,14 @@ var App = class {
 			class: "note",
 			text: "임팩트는 장면당 핵심 타격에만 쓰세요. 모든 비트 점멸은 피합니다."
 		}));
-	}
+	},
 	markersChanged() {
 		this.project.markers.sort((a, b) => a.t - b.t);
 		this.refreshSchedules();
 		this.updateMarkerCount();
 		this.drawTimeline();
 		this.save(true);
-	}
+	},
 	refreshSchedules() {
 		const E = this.engine, t = this.t;
 		E.buildGlobalSchedule();
@@ -17616,10 +17123,10 @@ var App = class {
 			L.evPtr = L.events.findIndex((e) => e.t >= t);
 			if (L.evPtr < 0) L.evPtr = L.events.length;
 		}
-	}
+	},
 	updateMarkerCount() {
 		$("#mCount").textContent = "마커 " + this.project.markers.length + "개";
-	}
+	},
 	tap() {
 		if (!this.playing) return;
 		this.project.markers.push({
@@ -17627,10 +17134,10 @@ var App = class {
 			s: 1
 		});
 		this.markersChanged();
-	}
+	},
 	togglePlay() {
 		this.playing ? this.pause() : this.play();
-	}
+	},
 	play() {
 		if (this.exporting) return;
 		if (this.engine.frame >= this.totalFrames) {
@@ -17642,14 +17149,14 @@ var App = class {
 		this.playStartTime = performance.now();
 		this.playStartFrame = this.engine.frame;
 		if ($("#aPlay").checked) this.audio.play(this.t);
-	}
+	},
 	pause() {
 		if (!this.playing) return;
 		this.playing = false;
 		$("#tPlay").textContent = "▶";
 		this.audio.stop();
 		this.refreshInspectorValues();
-	}
+	},
 	async seekAsync(frame) {
 		frame = Math.max(1, Math.min(this.totalFrames, frame));
 		const E = this.engine, token = ++this.seekToken;
@@ -17670,7 +17177,7 @@ var App = class {
 		this.needsRender = true;
 		this.refreshInspectorValues();
 		this.drawTimeline();
-	}
+	},
 	tick(now) {
 		requestAnimationFrame((t) => this.tick(t));
 		if (this.exporting) return;
@@ -17714,6 +17221,10 @@ var App = class {
 		$("#tTime").textContent = fmtTime(this.t) + " / " + fmtTime(P.duration) + "  f" + E.frame;
 		$("#stats").textContent = `${P.width}×${P.height} · 미리보기 ${E.rw}×${E.rh} · ${this.playing ? this.fpsShown.toFixed(0) + " fps" : "정지"}`;
 	}
+};
+// src/app/stage.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var stage = {
 	layoutStage() {
 		const vp = $("#viewport"), P = this.project;
 		if (!P) return;
@@ -17753,7 +17264,7 @@ var App = class {
 			tb.width = 480;
 		}
 		this.needsRender = true;
-	}
+	},
 	drawGuides() {
 		const c = $("#guides"), st = $("#stage");
 		const dpr = Math.min(window.devicePixelRatio || 1, 8192 / Math.max(1, st.clientWidth), 8192 / Math.max(1, st.clientHeight));
@@ -17778,11 +17289,151 @@ var App = class {
 			}
 			g.fillText(FACE_NAMES[i], x + 5 * dpr, 13 * dpr);
 		}
-	}
+	},
 	drawThumb() {
 		const tb = $("#thumb");
 		tb.getContext("2d").drawImage(this.engine.canvas, 0, 0, tb.width, tb.height);
+	},
+	applyLayout(L) {
+		const bs = document.body.style;
+		this.layoutSz = {
+			lw: Math.max(200, Math.min(700, L.lw || 300)),
+			rw: Math.max(240, Math.min(820, L.rw || 380)),
+			bh: Math.max(110, Math.min(560, L.bh || 196))
+		};
+		bs.setProperty("--lw", this.layoutSz.lw + "px");
+		bs.setProperty("--rw", this.layoutSz.rw + "px");
+		bs.setProperty("--bh", this.layoutSz.bh + "px");
+	},
+	saveLayout() {
+		try {
+			localStorage.setItem("rlab.layout", JSON.stringify(this.layoutSz));
+		} catch (e) {}
+	},
+	bindSplitters() {
+		if (!this.layoutSz) this.applyLayout({});
+		const drag = (el, fn) => el.addEventListener("mousedown", (e) => {
+			e.preventDefault();
+			el.classList.add("drag");
+			document.body.classList.add("resizing");
+			document.body.style.cursor = getComputedStyle(el).cursor;
+			const start = {
+				x: e.clientX,
+				y: e.clientY,
+				...this.layoutSz
+			};
+			const mv = (ev) => {
+				fn(ev, start);
+				this.applyLayout(this.layoutSz);
+			};
+			const up = () => {
+				el.classList.remove("drag");
+				document.body.classList.remove("resizing");
+				document.body.style.cursor = "";
+				window.removeEventListener("mousemove", mv);
+				window.removeEventListener("mouseup", up);
+				this.saveLayout();
+				this.layoutStage();
+			};
+			window.addEventListener("mousemove", mv);
+			window.addEventListener("mouseup", up);
+		});
+		drag($("#splitL"), (e, s) => {
+			this.layoutSz.lw = s.lw + (e.clientX - s.x);
+		});
+		drag($("#splitR"), (e, s) => {
+			this.layoutSz.rw = s.rw - (e.clientX - s.x);
+		});
+		drag($("#splitB"), (e, s) => {
+			this.layoutSz.bh = s.bh - (e.clientY - s.y);
+		});
+		for (const [id, k] of [
+			["#splitL", "lw"],
+			["#splitR", "rw"],
+			["#splitB", "bh"]
+		]) $(id).addEventListener("dblclick", () => {
+			this.layoutSz[k] = {
+				lw: 300,
+				rw: 380,
+				bh: 196
+			}[k];
+			this.applyLayout(this.layoutSz);
+			this.saveLayout();
+		});
+	},
+	bindZoom() {
+		const vp = $("#viewport");
+		vp.addEventListener("wheel", (e) => {
+			e.preventDefault();
+			this.zoomBy(Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0015)), e.clientX, e.clientY);
+		}, { passive: false });
+		let pan = null;
+		vp.addEventListener("mousedown", (e) => {
+			if (!(e.button === 1 || e.button === 0 && e.altKey)) return;
+			e.preventDefault();
+			pan = {
+				x: e.clientX,
+				y: e.clientY,
+				px: this.pan.x,
+				py: this.pan.y
+			};
+			vp.classList.add("panning");
+			this.panned = true;
+		});
+		window.addEventListener("mousemove", (e) => {
+			if (!pan) return;
+			this.pan.x = pan.px + e.clientX - pan.x;
+			this.pan.y = pan.py + e.clientY - pan.y;
+			this.layoutStage();
+		});
+		window.addEventListener("mouseup", () => {
+			if (pan) {
+				pan = null;
+				vp.classList.remove("panning");
+			}
+		});
+		vp.addEventListener("dblclick", () => this.zoomFit());
+		$("#zIn").addEventListener("click", () => this.zoomBy(1.25));
+		$("#zOut").addEventListener("click", () => this.zoomBy(.8));
+		$("#zFit").addEventListener("click", () => this.zoomFit());
+	},
+	zoomBy(f, cx, cy) {
+		const r = $("#viewport").getBoundingClientRect();
+		const old = this.zoom, nz = Math.max(1, Math.min(32, old * f));
+		if (nz === old) return;
+		if (cx == null) {
+			cx = r.left + r.width / 2;
+			cy = r.top + r.height / 2;
+		}
+		const ox = cx - (r.left + r.width / 2), oy = cy - (r.top + r.height / 2);
+		this.pan.x = ox - (ox - this.pan.x) * nz / old;
+		this.pan.y = oy - (oy - this.pan.y) * nz / old;
+		this.zoom = nz;
+		this.layoutStage();
+	},
+	zoomFit() {
+		this.zoom = 1;
+		this.pan = {
+			x: 0,
+			y: 0
+		};
+		this.layoutStage();
+	},
+	zoom1to1() {
+		const vp = $("#viewport"), P = this.project, aw = vp.clientWidth - 32, ah = vp.clientHeight - 32, a = P.width / P.height;
+		let w = aw;
+		if (aw / a > ah) w = ah * a;
+		this.zoom = Math.max(1, P.width / (window.devicePixelRatio || 1) / w);
+		this.pan = {
+			x: 0,
+			y: 0
+		};
+		this.layoutStage();
 	}
+};
+// src/app/timeline.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var timeline = {
 	drawTimeline() {
 		const c = $("#timeline"), dpr = window.devicePixelRatio || 1;
 		const W = c.clientWidth, H = c.clientHeight;
@@ -17910,7 +17561,277 @@ var App = class {
 		g.lineTo(X(pt), H);
 		g.stroke();
 		g.lineWidth = 1;
+	},
+	tlGeom() {
+		const c = $("#timeline"), W = c.clientWidth, H = c.clientHeight, D = this.project.duration;
+		return {
+			W,
+			H,
+			D,
+			wy: 14,
+			wh: Math.max(20, H * .38),
+			X: (t) => 8 + t / D * (W - 16),
+			invX: (x) => (x - 8) / (W - 16) * D
+		};
+	},
+	tlLocal(e) {
+		const r = $("#timeline").getBoundingClientRect();
+		return {
+			x: e.clientX - r.left,
+			y: e.clientY - r.top
+		};
+	},
+	tlLocalY(e) {
+		return e.clientY - $("#timeline").getBoundingClientRect().top;
+	},
+	kfAt(e) {
+		const { x, y } = this.tlLocal(e), g = this.tlGeom(), rows = this._tlRows || [];
+		let best = null, bd = 7;
+		for (const row of rows) {
+			if (Math.abs(y - row.y) > 7) continue;
+			for (const k of row.ks) {
+				const d = Math.abs(g.X(k.t) - x);
+				if (d < bd && d < 6.5) {
+					bd = d;
+					best = {
+						arr: row.ks,
+						key: k,
+						keyId: row.keyId,
+						layerId: row.layerId
+					};
+				}
+			}
+		}
+		return best;
+	},
+	tlDown(e) {
+		if (e.button !== 0) return;
+		const { x, y } = this.tlLocal(e), g = this.tlGeom();
+		const inKeyBand = this._tlRows && this._tlRows.length && y >= g.wy + g.wh && y <= (this._tlRowsBottom || 0) + 6;
+		this.kfSel = this.kfSel || [];
+		if (inKeyBand) {
+			const hit = this.kfAt(e);
+			if (hit) {
+				const inSel = this.kfSel.some((r) => r.key === hit.key);
+				if (e.shiftKey) {
+					if (inSel) this.kfSel = this.kfSel.filter((r) => r.key !== hit.key);
+					else this.kfSel.push(hit);
+				} else if (!inSel) this.kfSel = [hit];
+				this._tlDrag = {
+					mode: "move",
+					startX: x,
+					orig: this.kfSel.map((r) => ({
+						r,
+						t: r.key.t
+					})),
+					moved: false
+				};
+			} else {
+				if (!e.shiftKey) this.kfSel = [];
+				this._tlDrag = {
+					mode: "band",
+					base: this.kfSel.slice()
+				};
+				this._tlBand = {
+					x0: x,
+					y0: y,
+					x1: x,
+					y1: y
+				};
+			}
+			this.drawTimeline();
+		} else {
+			this._tlDrag = { mode: "scrub" };
+			this.pause();
+			this.scrubT = this._tAt(e);
+			this.drawTimeline();
+		}
+	},
+	tlMove(e) {
+		const d = this._tlDrag;
+		if (!d) return;
+		const { x, y } = this.tlLocal(e), g = this.tlGeom();
+		if (d.mode === "scrub") {
+			this.scrubT = this._tAt(e);
+			this.drawTimeline();
+			return;
+		}
+		if (d.mode === "move") {
+			const dt = (x - d.startX) / (g.W - 16) * g.D;
+			if (Math.abs(dt) > 1e-4) d.moved = true;
+			let off = 0;
+			this._tlSnapX = null;
+			if (e.shiftKey) {
+				const tol = 10 / (g.W - 16) * g.D, targets = this.snapTargets(d.orig.map((o) => o.r.key));
+				let best = tol;
+				for (const o of d.orig) {
+					const nt = o.t + dt;
+					for (const tg of targets) {
+						const dd = Math.abs(nt - tg);
+						if (dd < best) {
+							best = dd;
+							off = tg - nt;
+							this._tlSnapX = g.X(tg);
+						}
+					}
+				}
+			}
+			for (const o of d.orig) o.r.key.t = Math.max(0, Math.min(g.D, o.t + dt + off));
+			this.drawTimeline();
+		} else if (d.mode === "band") {
+			this._tlBand.x1 = x;
+			this._tlBand.y1 = y;
+			this.drawTimeline();
+		}
+	},
+	tlUp(e) {
+		const d = this._tlDrag;
+		if (!d) return;
+		this._tlDrag = null;
+		this._tlSnapX = null;
+		const g = this.tlGeom(), fps = this.project.fps;
+		if (d.mode === "scrub") {
+			const t = this.scrubT;
+			this.scrubT = null;
+			this.seekAsync(Math.max(1, Math.round((t || 0) * fps)));
+			return;
+		}
+		if (d.mode === "move") {
+			if (d.moved) {
+				const arrs = /* @__PURE__ */ new Set();
+				for (const o of d.orig) {
+					o.r.key.t = Math.max(0, Math.min(g.D, Math.round(o.r.key.t * fps) / fps));
+					arrs.add(o.r.arr);
+				}
+				for (const a of arrs) a.sort((p, q) => p.t - q.t);
+				this.commitKeys();
+			} else this.drawTimeline();
+			return;
+		}
+		if (d.mode === "band") {
+			const b = this._tlBand;
+			this._tlBand = null;
+			const x0 = Math.min(b.x0, b.x1), x1 = Math.max(b.x0, b.x1), y0 = Math.min(b.y0, b.y1), y1 = Math.max(b.y0, b.y1);
+			const sel = d.base.slice();
+			for (const row of this._tlRows || []) {
+				if (row.y < y0 - 6 || row.y > y1 + 6) continue;
+				for (const k of row.ks) {
+					const x = g.X(k.t);
+					if (x >= x0 && x <= x1 && !sel.some((r) => r.key === k)) sel.push({
+						arr: row.ks,
+						key: k,
+						keyId: row.keyId,
+						layerId: row.layerId
+					});
+				}
+			}
+			this.kfSel = sel;
+			this.drawTimeline();
+			if (sel.length) this.toast(sel.length + "개 키프레임 선택 — 드래그로 이동, Ctrl+C 복사, Delete 삭제", 1800);
+		}
+	},
+	deleteKeys(refs) {
+		if (!refs || !refs.length) return;
+		for (const r of refs) {
+			const i = r.arr.indexOf(r.key);
+			if (i >= 0) r.arr.splice(i, 1);
+		}
+		for (const r of refs) if (r.arr.length === 0 && r.layerId != null) {
+			const L = this.project.layers.find((l) => l.id === r.layerId);
+			if (L && L.keys) {
+				for (const k in L.keys) if (L.keys[k] === r.arr) delete L.keys[k];
+			}
+		}
+		const gone = new Set(refs.map((r) => r.key));
+		this.kfSel = (this.kfSel || []).filter((r) => !gone.has(r.key));
+		this.toast(refs.length + "개 키프레임 삭제", 1200);
+		this.commitKeys();
+	},
+	copyKeys() {
+		const sel = this.kfSel || [];
+		if (!sel.length) {
+			this.toast("선택된 키프레임이 없습니다");
+			return;
+		}
+		const minT = Math.min(...sel.map((r) => r.key.t));
+		this.kfClip = sel.map((r) => ({
+			keyId: r.keyId,
+			dt: r.key.t - minT,
+			v: r.key.v,
+			e: r.key.e
+		}));
+		this.toast("키프레임 " + sel.length + "개 복사 — Ctrl+V로 재생헤드 위치에 붙여넣기", 1800);
+	},
+	pasteKeys() {
+		const clip = this.kfClip;
+		if (!clip || !clip.length) {
+			this.toast("복사된 키프레임이 없습니다");
+			return;
+		}
+		const P = this.project, fps = P.fps, L = this.selLayer(), base = +this.t;
+		const newSel = [];
+		const arrs = /* @__PURE__ */ new Set();
+		for (const c of clip) {
+			let arr;
+			if (c.keyId === "__speed__") arr = P.speedKeys;
+			else {
+				if (!L) continue;
+				arr = L.keys[c.keyId] = L.keys[c.keyId] || [];
+			}
+			const t = Math.max(0, Math.min(P.duration, Math.round((base + c.dt) * fps) / fps));
+			let k = arr.find((x) => Math.abs(x.t - t) < .5 / fps);
+			if (k) {
+				k.v = c.v;
+				k.e = c.e;
+			} else {
+				k = {
+					t,
+					v: c.v,
+					e: c.e
+				};
+				arr.push(k);
+			}
+			newSel.push({
+				arr,
+				key: k,
+				keyId: c.keyId,
+				layerId: c.keyId === "__speed__" ? null : L ? L.id : null
+			});
+			arrs.add(arr);
+		}
+		for (const a of arrs) a.sort((p, q) => p.t - q.t);
+		this.kfSel = newSel;
+		this.toast(newSel.length + "개 붙여넣기", 1200);
+		this.commitKeys();
+	},
+	snapTargets(exclude) {
+		const P = this.project, ex = new Set(exclude), out = [
+			0,
+			P.duration,
+			+this.t
+		];
+		for (const m of P.markers) out.push(m.t);
+		for (const row of this._tlRows || []) for (const k of row.ks) if (!ex.has(k)) out.push(k.t);
+		return out;
+	},
+	commitKeys() {
+		this.save();
+		this.refreshInspectorValues();
+		this.drawTimeline();
+		this.needsRender = true;
+		if (!this.playing) {
+			clearTimeout(this._resimT);
+			this._resimT = setTimeout(() => {
+				const f = this.engine.frame;
+				this.engine.reset();
+				this.seekAsync(f);
+			}, 300);
+		}
 	}
+};
+// src/app/exportDialog.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var exportDialog = {
 	openModal() {
 		this.pause();
 		this.exFmt = this.exFmt || "png";
@@ -17922,7 +17843,7 @@ var App = class {
 		$("#exCancel").textContent = "닫기";
 		$("#modal").classList.remove("hidden");
 		this.updateModal();
-	}
+	},
 	updateModal() {
 		for (const b of $$("#exFmt button")) b.classList.toggle("on", b.dataset.v === this.exFmt);
 		const P = this.project, from = +$("#exFrom").value || 0, to = Math.min(P.duration, +$("#exTo").value || P.duration);
@@ -17934,7 +17855,7 @@ var App = class {
 		else info += "H.264 MP4 · " + (P.bg.mode === "transparent" ? "투명 배경은 지원되지 않아 배경색으로 저장" : "배경 합성");
 		info += this.native || window.showDirectoryPicker || this.exFmt !== "png" ? "" : " · 폴더 선택 미지원 브라우저: ZIP으로 저장";
 		$("#exInfo").textContent = info;
-	}
+	},
 	async startExport() {
 		const opt = {
 			from: +$("#exFrom").value || 0,
@@ -17948,11 +17869,11 @@ var App = class {
 		await this.runExport(fn, null, true);
 		$("#exGo").disabled = false;
 		$("#exCancel").textContent = "닫기";
-	}
+	},
 	exProgress(p, s) {
 		$("#exBar").style.width = (p * 100).toFixed(1) + "%";
 		$("#exStatus").textContent = s;
-	}
+	},
 	async runExport(fn, label, inModal) {
 		this.pause();
 		this.exporting = true;
@@ -17982,26 +17903,9 @@ var App = class {
 		this.seekAsync(prevFrame);
 	}
 };
-window.addEventListener("DOMContentLoaded", () => {
-	try {
-		window.app = new App();
-	} catch (e) {
-		console.error(e);
-		const N = window.rlabNative;
-		document.body.innerHTML = "<div style=\"padding:40px;color:#ddd;font:14px sans-serif;line-height:1.7\">RESONANCE LAB을 시작할 수 없습니다.<br><br><b>" + e.message + "</b><br><br>" + (N ? "이 PC의 그래픽 가속(GPU)이 WebGL2를 지원하지 않거나 막혀 있을 수 있습니다.<br><button id=\"rlSafe\" style=\"margin-top:12px;padding:8px 16px;font-size:14px\">호환 모드(소프트웨어 렌더링)로 다시 시작</button> <button id=\"rlNorm\" style=\"padding:8px 16px;font-size:14px\">일반 모드로 다시 시작</button><div id=\"rlLog\" style=\"margin-top:14px;color:#888;font-size:12px\"></div>" : "Chrome 또는 Edge 최신 버전에서 열고, 설정 → 시스템 → 「가능한 경우 그래픽 가속 사용」을 켜 주세요.") + "</div>";
-		if (N) {
-			document.getElementById("rlSafe").onclick = () => N.relaunch(true);
-			document.getElementById("rlNorm").onclick = () => N.relaunch(false);
-			N.logPath && N.logPath().then((p) => {
-				document.getElementById("rlLog").textContent = "로그: " + p;
-			});
-			N.startFail && N.startFail(e.message);
-		}
-	}
-});
-Object.assign(RL, { App });
-// src/ui2.js
-Object.assign(App.prototype, {
+// src/app/menus.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var menus = {
 	initV4() {
 		this.zoom = 1;
 		this.pan = {
@@ -18040,111 +17944,6 @@ Object.assign(App.prototype, {
 				this.toast("GPU 호환 모드(소프트웨어 렌더링)로 실행 중 — 옵션 메뉴에서 일반 모드로 되돌릴 수 있습니다", 4e3);
 			}
 		});
-	},
-	layerAssets(layers, assets) {
-		const out = {};
-		if (!assets) return out;
-		const visit = (v) => {
-			if (typeof v === "string" && assets[v]) out[v] = assets[v];
-			else if (Array.isArray(v)) v.forEach(visit);
-		};
-		for (const L of layers) for (const k in L.params || {}) visit(L.params[k]);
-		return out;
-	},
-	copyLayers(layers, assets, from) {
-		if (!layers || !layers.length) return;
-		const clip = {
-			layers: JSON.parse(JSON.stringify(layers)),
-			assets: this.layerAssets(layers, assets || this.project.assets),
-			from: from || this.project.name,
-			time: Date.now()
-		};
-		this.layerClip = clip;
-		this.lastClip = "layer";
-		try {
-			localStorage.setItem("rlab.layerClip", JSON.stringify(clip));
-		} catch (e) {}
-		this.toast("레이어 " + layers.length + "개 복사됨 — 다른 씬을 열고 Ctrl+V로 붙여넣기");
-	},
-	getLayerClip() {
-		if (this.layerClip) return this.layerClip;
-		try {
-			const c = JSON.parse(localStorage.getItem("rlab.layerClip") || "null");
-			if (c && c.layers) {
-				this.layerClip = c;
-				return c;
-			}
-		} catch (e) {}
-		return null;
-	},
-	pasteLayers(clip) {
-		clip = clip || this.getLayerClip();
-		if (!clip || !clip.layers.length) {
-			this.toast("복사한 레이어가 없습니다");
-			return;
-		}
-		const P = this.project;
-		if (clip.assets && Object.keys(clip.assets).length) {
-			P.assets = P.assets || {};
-			for (const id in clip.assets) if (!P.assets[id]) P.assets[id] = clip.assets[id];
-			this.engine.syncAssets && this.engine.syncAssets();
-		}
-		const at = this.sel ? P.layers.findIndex((l) => l.id === this.sel) + 1 : P.layers.length;
-		const add = clip.layers.map((src) => {
-			const fresh = modules[src.type] ? newLayer(src.type) : null;
-			if (!fresh) return null;
-			const c = Object.assign(fresh, JSON.parse(JSON.stringify(src)));
-			c.params = Object.assign(newLayer(src.type).params, c.params || {});
-			c.id = "L" + Math.random().toString(36).slice(2, 8);
-			if (P.layers.some((x) => x.name === c.name)) c.name += " (붙여넣기)";
-			return c;
-		}).filter(Boolean);
-		P.layers.splice(Math.max(0, at), 0, ...add);
-		this.engine.syncLayers();
-		for (const c of add) {
-			const EL = this.engine.layers.find((x) => x.id === c.id);
-			if (EL) EL.needsReset = true;
-		}
-		this.sel = add.length ? add[add.length - 1].id : this.sel;
-		this.kfSel = [];
-		this.renderLayerList();
-		this.renderInspector();
-		this.needsRender = true;
-		this.updateBgWarn && this.updateBgWarn();
-		this.drawTimeline();
-		this.save(true);
-		this.toast("레이어 " + add.length + "개 붙여넣음" + (clip.from ? " — 「" + clip.from + "」에서" : ""));
-	},
-	layerCtx(e, L) {
-		e.preventDefault();
-		this.sel = L.id;
-		this.renderLayerList();
-		this.renderInspector();
-		const clip = this.getLayerClip();
-		this.ctxMenu(e.clientX, e.clientY, [
-			{
-				label: "레이어 복사",
-				fn: () => this.copyLayers([L])
-			},
-			{
-				label: "모든 레이어 복사 (" + this.project.layers.length + "개)",
-				fn: () => this.copyLayers(this.project.layers.slice())
-			},
-			{
-				label: clip ? "붙여넣기 — " + clip.layers.map((l) => l.name).slice(0, 2).join(", ") + (clip.layers.length > 2 ? " 외 " + (clip.layers.length - 2) : "") : "붙여넣기",
-				dis: !clip,
-				fn: () => this.pasteLayers()
-			},
-			"-",
-			{
-				label: "복제",
-				fn: () => this.layerAction(L.id, "dup")
-			},
-			{
-				label: "삭제",
-				fn: () => this.layerAction(L.id, "del")
-			}
-		]);
 	},
 	askText(title, value) {
 		return new Promise((res) => {
@@ -18686,208 +18485,15 @@ Object.assign(App.prototype, {
 		$("#helpModal").classList.remove("hidden");
 		$("#helpClose").onclick = () => $("#helpModal").classList.add("hidden");
 	},
-	applyLayout(L) {
-		const bs = document.body.style;
-		this.layoutSz = {
-			lw: Math.max(200, Math.min(700, L.lw || 300)),
-			rw: Math.max(240, Math.min(820, L.rw || 380)),
-			bh: Math.max(110, Math.min(560, L.bh || 196))
-		};
-		bs.setProperty("--lw", this.layoutSz.lw + "px");
-		bs.setProperty("--rw", this.layoutSz.rw + "px");
-		bs.setProperty("--bh", this.layoutSz.bh + "px");
-	},
-	saveLayout() {
-		try {
-			localStorage.setItem("rlab.layout", JSON.stringify(this.layoutSz));
-		} catch (e) {}
-	},
-	bindSplitters() {
-		if (!this.layoutSz) this.applyLayout({});
-		const drag = (el, fn) => el.addEventListener("mousedown", (e) => {
-			e.preventDefault();
-			el.classList.add("drag");
-			document.body.classList.add("resizing");
-			document.body.style.cursor = getComputedStyle(el).cursor;
-			const start = {
-				x: e.clientX,
-				y: e.clientY,
-				...this.layoutSz
-			};
-			const mv = (ev) => {
-				fn(ev, start);
-				this.applyLayout(this.layoutSz);
-			};
-			const up = () => {
-				el.classList.remove("drag");
-				document.body.classList.remove("resizing");
-				document.body.style.cursor = "";
-				window.removeEventListener("mousemove", mv);
-				window.removeEventListener("mouseup", up);
-				this.saveLayout();
-				this.layoutStage();
-			};
-			window.addEventListener("mousemove", mv);
-			window.addEventListener("mouseup", up);
-		});
-		drag($("#splitL"), (e, s) => {
-			this.layoutSz.lw = s.lw + (e.clientX - s.x);
-		});
-		drag($("#splitR"), (e, s) => {
-			this.layoutSz.rw = s.rw - (e.clientX - s.x);
-		});
-		drag($("#splitB"), (e, s) => {
-			this.layoutSz.bh = s.bh - (e.clientY - s.y);
-		});
-		for (const [id, k] of [
-			["#splitL", "lw"],
-			["#splitR", "rw"],
-			["#splitB", "bh"]
-		]) $(id).addEventListener("dblclick", () => {
-			this.layoutSz[k] = {
-				lw: 300,
-				rw: 380,
-				bh: 196
-			}[k];
-			this.applyLayout(this.layoutSz);
-			this.saveLayout();
-		});
-	},
-	bindZoom() {
-		const vp = $("#viewport");
-		vp.addEventListener("wheel", (e) => {
-			e.preventDefault();
-			this.zoomBy(Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0015)), e.clientX, e.clientY);
-		}, { passive: false });
-		let pan = null;
-		vp.addEventListener("mousedown", (e) => {
-			if (!(e.button === 1 || e.button === 0 && e.altKey)) return;
-			e.preventDefault();
-			pan = {
-				x: e.clientX,
-				y: e.clientY,
-				px: this.pan.x,
-				py: this.pan.y
-			};
-			vp.classList.add("panning");
-			this.panned = true;
-		});
-		window.addEventListener("mousemove", (e) => {
-			if (!pan) return;
-			this.pan.x = pan.px + e.clientX - pan.x;
-			this.pan.y = pan.py + e.clientY - pan.y;
-			this.layoutStage();
-		});
-		window.addEventListener("mouseup", () => {
-			if (pan) {
-				pan = null;
-				vp.classList.remove("panning");
-			}
-		});
-		vp.addEventListener("dblclick", () => this.zoomFit());
-		$("#zIn").addEventListener("click", () => this.zoomBy(1.25));
-		$("#zOut").addEventListener("click", () => this.zoomBy(.8));
-		$("#zFit").addEventListener("click", () => this.zoomFit());
-	},
-	zoomBy(f, cx, cy) {
-		const r = $("#viewport").getBoundingClientRect();
-		const old = this.zoom, nz = Math.max(1, Math.min(32, old * f));
-		if (nz === old) return;
-		if (cx == null) {
-			cx = r.left + r.width / 2;
-			cy = r.top + r.height / 2;
-		}
-		const ox = cx - (r.left + r.width / 2), oy = cy - (r.top + r.height / 2);
-		this.pan.x = ox - (ox - this.pan.x) * nz / old;
-		this.pan.y = oy - (oy - this.pan.y) * nz / old;
-		this.zoom = nz;
-		this.layoutStage();
-	},
-	zoomFit() {
-		this.zoom = 1;
-		this.pan = {
-			x: 0,
-			y: 0
-		};
-		this.layoutStage();
-	},
-	zoom1to1() {
-		const vp = $("#viewport"), P = this.project, aw = vp.clientWidth - 32, ah = vp.clientHeight - 32, a = P.width / P.height;
-		let w = aw;
-		if (aw / a > ah) w = ah * a;
-		this.zoom = Math.max(1, P.width / (window.devicePixelRatio || 1) / w);
-		this.pan = {
-			x: 0,
-			y: 0
-		};
-		this.layoutStage();
-	},
-	historyReset() {
-		this.hist = [JSON.stringify(this.project)];
-		this.redoStack = [];
-	},
-	historyCommit(j) {
-		if (this._restoring) return;
-		if (!this.hist) {
-			this.hist = [j];
-			this.redoStack = [];
-			return;
-		}
-		if (this.hist[this.hist.length - 1] === j) return;
-		this.hist.push(j);
-		if (this.hist.length > 11) this.hist.shift();
-		this.redoStack = [];
-	},
-	flushHistory() {
-		if (this._saveT) {
-			if (this._saveT !== 1) clearTimeout(this._saveT);
-			this._saveT = null;
-			const j = JSON.stringify(this.project);
-			this.historyCommit(j);
-			try {
-				localStorage.setItem("rlab.autosave", j);
-			} catch (e) {}
-		}
-	},
-	undo() {
-		this.flushHistory();
-		if (this.hist.length < 2) {
-			this.toast("더 되돌릴 수 없습니다");
-			return;
-		}
-		this.redoStack.push(this.hist.pop());
-		this.restoreJSON(this.hist[this.hist.length - 1]);
-		this.toast("되돌리기 (" + (this.hist.length - 1) + "단계 남음)", 900);
-	},
-	redo() {
-		this.flushHistory();
-		if (!this.redoStack.length) {
-			this.toast("다시 실행할 작업이 없습니다");
-			return;
-		}
-		const j = this.redoStack.pop();
-		this.hist.push(j);
-		this.restoreJSON(j);
-		this.toast("다시 실행", 900);
-	},
-	restoreJSON(j) {
-		const f = this.engine.frame, sel = this.sel, scroll = $("#right").scrollTop, wasPlaying = this.playing;
-		this._restoring = true;
-		try {
-			this.loadProject(JSON.parse(j), false, sel);
-		} finally {
-			this._restoring = false;
-		}
-		$("#right").scrollTop = scroll;
-		this.seekAsync(f);
-		if (wasPlaying) this.play();
-	},
 	shortcut(e) {
 		const k = e.key, ctrl = e.ctrlKey || e.metaKey, inField = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && ![
 			"range",
 			"checkbox",
 			"color"
-		].includes(document.activeElement.type);
+		].includes(
+			/** @type {HTMLInputElement} */
+			document.activeElement.type
+		);
 		if (k === "F1") {
 			e.preventDefault();
 			this.help("usage");
@@ -19026,7 +18632,184 @@ Object.assign(App.prototype, {
 			return true;
 		}
 		return false;
+	}
+};
+// src/app/clipboard.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var clipboard = {
+	layerAssets(layers, assets) {
+		const out = {};
+		if (!assets) return out;
+		const visit = (v) => {
+			if (typeof v === "string" && assets[v]) out[v] = assets[v];
+			else if (Array.isArray(v)) v.forEach(visit);
+		};
+		for (const L of layers) for (const k in L.params || {}) visit(L.params[k]);
+		return out;
 	},
+	copyLayers(layers, assets, from) {
+		if (!layers || !layers.length) return;
+		const clip = {
+			layers: JSON.parse(JSON.stringify(layers)),
+			assets: this.layerAssets(layers, assets || this.project.assets),
+			from: from || this.project.name,
+			time: Date.now()
+		};
+		this.layerClip = clip;
+		this.lastClip = "layer";
+		try {
+			localStorage.setItem("rlab.layerClip", JSON.stringify(clip));
+		} catch (e) {}
+		this.toast("레이어 " + layers.length + "개 복사됨 — 다른 씬을 열고 Ctrl+V로 붙여넣기");
+	},
+	getLayerClip() {
+		if (this.layerClip) return this.layerClip;
+		try {
+			const c = JSON.parse(localStorage.getItem("rlab.layerClip") || "null");
+			if (c && c.layers) {
+				this.layerClip = c;
+				return c;
+			}
+		} catch (e) {}
+		return null;
+	},
+	pasteLayers(clip) {
+		clip = clip || this.getLayerClip();
+		if (!clip || !clip.layers.length) {
+			this.toast("복사한 레이어가 없습니다");
+			return;
+		}
+		const P = this.project;
+		if (clip.assets && Object.keys(clip.assets).length) {
+			P.assets = P.assets || {};
+			for (const id in clip.assets) if (!P.assets[id]) P.assets[id] = clip.assets[id];
+			this.engine.syncAssets && this.engine.syncAssets();
+		}
+		const at = this.sel ? P.layers.findIndex((l) => l.id === this.sel) + 1 : P.layers.length;
+		const add = clip.layers.map((src) => {
+			const fresh = modules[src.type] ? newLayer(src.type) : null;
+			if (!fresh) return null;
+			const c = Object.assign(fresh, JSON.parse(JSON.stringify(src)));
+			c.params = Object.assign(newLayer(src.type).params, c.params || {});
+			c.id = "L" + Math.random().toString(36).slice(2, 8);
+			if (P.layers.some((x) => x.name === c.name)) c.name += " (붙여넣기)";
+			return c;
+		}).filter(Boolean);
+		P.layers.splice(Math.max(0, at), 0, ...add);
+		this.engine.syncLayers();
+		for (const c of add) {
+			const EL = this.engine.layers.find((x) => x.id === c.id);
+			if (EL) EL.needsReset = true;
+		}
+		this.sel = add.length ? add[add.length - 1].id : this.sel;
+		this.kfSel = [];
+		this.renderLayerList();
+		this.renderInspector();
+		this.needsRender = true;
+		this.updateBgWarn && this.updateBgWarn();
+		this.drawTimeline();
+		this.save(true);
+		this.toast("레이어 " + add.length + "개 붙여넣음" + (clip.from ? " — 「" + clip.from + "」에서" : ""));
+	},
+	layerCtx(e, L) {
+		e.preventDefault();
+		this.sel = L.id;
+		this.renderLayerList();
+		this.renderInspector();
+		const clip = this.getLayerClip();
+		this.ctxMenu(e.clientX, e.clientY, [
+			{
+				label: "레이어 복사",
+				fn: () => this.copyLayers([L])
+			},
+			{
+				label: "모든 레이어 복사 (" + this.project.layers.length + "개)",
+				fn: () => this.copyLayers(this.project.layers.slice())
+			},
+			{
+				label: clip ? "붙여넣기 — " + clip.layers.map((l) => l.name).slice(0, 2).join(", ") + (clip.layers.length > 2 ? " 외 " + (clip.layers.length - 2) : "") : "붙여넣기",
+				dis: !clip,
+				fn: () => this.pasteLayers()
+			},
+			"-",
+			{
+				label: "복제",
+				fn: () => this.layerAction(L.id, "dup")
+			},
+			{
+				label: "삭제",
+				fn: () => this.layerAction(L.id, "del")
+			}
+		]);
+	}
+};
+// src/app/history.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var history = {
+	historyReset() {
+		this.hist = [JSON.stringify(this.project)];
+		this.redoStack = [];
+	},
+	historyCommit(j) {
+		if (this._restoring) return;
+		if (!this.hist) {
+			this.hist = [j];
+			this.redoStack = [];
+			return;
+		}
+		if (this.hist[this.hist.length - 1] === j) return;
+		this.hist.push(j);
+		if (this.hist.length > 11) this.hist.shift();
+		this.redoStack = [];
+	},
+	flushHistory() {
+		if (this._saveT) {
+			if (this._saveT !== 1) clearTimeout(this._saveT);
+			this._saveT = null;
+			const j = JSON.stringify(this.project);
+			this.historyCommit(j);
+			try {
+				localStorage.setItem("rlab.autosave", j);
+			} catch (e) {}
+		}
+	},
+	undo() {
+		this.flushHistory();
+		if (this.hist.length < 2) {
+			this.toast("더 되돌릴 수 없습니다");
+			return;
+		}
+		this.redoStack.push(this.hist.pop());
+		this.restoreJSON(this.hist[this.hist.length - 1]);
+		this.toast("되돌리기 (" + (this.hist.length - 1) + "단계 남음)", 900);
+	},
+	redo() {
+		this.flushHistory();
+		if (!this.redoStack.length) {
+			this.toast("다시 실행할 작업이 없습니다");
+			return;
+		}
+		const j = this.redoStack.pop();
+		this.hist.push(j);
+		this.restoreJSON(j);
+		this.toast("다시 실행", 900);
+	},
+	restoreJSON(j) {
+		const f = this.engine.frame, sel = this.sel, scroll = $("#right").scrollTop, wasPlaying = this.playing;
+		this._restoring = true;
+		try {
+			this.loadProject(JSON.parse(j), false, sel);
+		} finally {
+			this._restoring = false;
+		}
+		$("#right").scrollTop = scroll;
+		this.seekAsync(f);
+		if (wasPlaying) this.play();
+	}
+};
+// src/app/shelf.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var shelf = {
 	snapThumb() {
 		const E = this.engine;
 		E.render();
@@ -19332,7 +19115,11 @@ Object.assign(App.prototype, {
 		this.renderShelf();
 		this.shelfLoad(0);
 		this.toast("액트 열기: " + o.scenes.length + "씬", 2e3);
-	},
+	}
+};
+// src/app/assets.js
+/** @satisfies {ThisType<import('./App.js').App>} */
+var assets = {
 	assetPicker(get, set) {
 		const P = this.project, box = h("div", { class: "asset" });
 		const sel = h("select", {}, h("option", {
@@ -19444,7 +19231,7 @@ Object.assign(App.prototype, {
 			inp.click();
 		});
 	}
-});
+};
 var imageToAsset = async function(file) {
 	const url = URL.createObjectURL(file);
 	try {
@@ -19519,278 +19306,531 @@ var videoToAtlas = async function(file, progress) {
 		URL.revokeObjectURL(url);
 	}
 };
-Object.assign(App.prototype, {
-	tlGeom() {
-		const c = $("#timeline"), W = c.clientWidth, H = c.clientHeight, D = this.project.duration;
-		return {
-			W,
-			H,
-			D,
-			wy: 14,
-			wh: Math.max(20, H * .38),
-			X: (t) => 8 + t / D * (W - 16),
-			invX: (x) => (x - 8) / (W - 16) * D
-		};
-	},
-	tlLocal(e) {
-		const r = $("#timeline").getBoundingClientRect();
-		return {
-			x: e.clientX - r.left,
-			y: e.clientY - r.top
-		};
-	},
-	tlLocalY(e) {
-		return e.clientY - $("#timeline").getBoundingClientRect().top;
-	},
-	kfAt(e) {
-		const { x, y } = this.tlLocal(e), g = this.tlGeom(), rows = this._tlRows || [];
-		let best = null, bd = 7;
-		for (const row of rows) {
-			if (Math.abs(y - row.y) > 7) continue;
-			for (const k of row.ks) {
-				const d = Math.abs(g.X(k.t) - x);
-				if (d < bd && d < 6.5) {
-					bd = d;
-					best = {
-						arr: row.ks,
-						key: k,
-						keyId: row.keyId,
-						layerId: row.layerId
-					};
-				}
-			}
-		}
-		return best;
-	},
-	tlDown(e) {
-		if (e.button !== 0) return;
-		const { x, y } = this.tlLocal(e), g = this.tlGeom();
-		const inKeyBand = this._tlRows && this._tlRows.length && y >= g.wy + g.wh && y <= (this._tlRowsBottom || 0) + 6;
-		this.kfSel = this.kfSel || [];
-		if (inKeyBand) {
-			const hit = this.kfAt(e);
-			if (hit) {
-				const inSel = this.kfSel.some((r) => r.key === hit.key);
-				if (e.shiftKey) {
-					if (inSel) this.kfSel = this.kfSel.filter((r) => r.key !== hit.key);
-					else this.kfSel.push(hit);
-				} else if (!inSel) this.kfSel = [hit];
-				this._tlDrag = {
-					mode: "move",
-					startX: x,
-					orig: this.kfSel.map((r) => ({
-						r,
-						t: r.key.t
-					})),
-					moved: false
-				};
-			} else {
-				if (!e.shiftKey) this.kfSel = [];
-				this._tlDrag = {
-					mode: "band",
-					base: this.kfSel.slice()
-				};
-				this._tlBand = {
-					x0: x,
-					y0: y,
-					x1: x,
-					y1: y
-				};
-			}
-			this.drawTimeline();
-		} else {
-			this._tlDrag = { mode: "scrub" };
-			this.pause();
-			this.scrubT = this._tAt(e);
-			this.drawTimeline();
-		}
-	},
-	tlMove(e) {
-		const d = this._tlDrag;
-		if (!d) return;
-		const { x, y } = this.tlLocal(e), g = this.tlGeom();
-		if (d.mode === "scrub") {
-			this.scrubT = this._tAt(e);
-			this.drawTimeline();
-			return;
-		}
-		if (d.mode === "move") {
-			const dt = (x - d.startX) / (g.W - 16) * g.D;
-			if (Math.abs(dt) > 1e-4) d.moved = true;
-			let off = 0;
-			this._tlSnapX = null;
-			if (e.shiftKey) {
-				const tol = 10 / (g.W - 16) * g.D, targets = this.snapTargets(d.orig.map((o) => o.r.key));
-				let best = tol;
-				for (const o of d.orig) {
-					const nt = o.t + dt;
-					for (const tg of targets) {
-						const dd = Math.abs(nt - tg);
-						if (dd < best) {
-							best = dd;
-							off = tg - nt;
-							this._tlSnapX = g.X(tg);
-						}
-					}
-				}
-			}
-			for (const o of d.orig) o.r.key.t = Math.max(0, Math.min(g.D, o.t + dt + off));
-			this.drawTimeline();
-		} else if (d.mode === "band") {
-			this._tlBand.x1 = x;
-			this._tlBand.y1 = y;
-			this.drawTimeline();
-		}
-	},
-	tlUp(e) {
-		const d = this._tlDrag;
-		if (!d) return;
-		this._tlDrag = null;
-		this._tlSnapX = null;
-		const g = this.tlGeom(), fps = this.project.fps;
-		if (d.mode === "scrub") {
-			const t = this.scrubT;
-			this.scrubT = null;
-			this.seekAsync(Math.max(1, Math.round((t || 0) * fps)));
-			return;
-		}
-		if (d.mode === "move") {
-			if (d.moved) {
-				const arrs = /* @__PURE__ */ new Set();
-				for (const o of d.orig) {
-					o.r.key.t = Math.max(0, Math.min(g.D, Math.round(o.r.key.t * fps) / fps));
-					arrs.add(o.r.arr);
-				}
-				for (const a of arrs) a.sort((p, q) => p.t - q.t);
-				this.commitKeys();
-			} else this.drawTimeline();
-			return;
-		}
-		if (d.mode === "band") {
-			const b = this._tlBand;
-			this._tlBand = null;
-			const x0 = Math.min(b.x0, b.x1), x1 = Math.max(b.x0, b.x1), y0 = Math.min(b.y0, b.y1), y1 = Math.max(b.y0, b.y1);
-			const sel = d.base.slice();
-			for (const row of this._tlRows || []) {
-				if (row.y < y0 - 6 || row.y > y1 + 6) continue;
-				for (const k of row.ks) {
-					const x = g.X(k.t);
-					if (x >= x0 && x <= x1 && !sel.some((r) => r.key === k)) sel.push({
-						arr: row.ks,
-						key: k,
-						keyId: row.keyId,
-						layerId: row.layerId
-					});
-				}
-			}
-			this.kfSel = sel;
-			this.drawTimeline();
-			if (sel.length) this.toast(sel.length + "개 키프레임 선택 — 드래그로 이동, Ctrl+C 복사, Delete 삭제", 1800);
-		}
-	},
-	deleteKeys(refs) {
-		if (!refs || !refs.length) return;
-		for (const r of refs) {
-			const i = r.arr.indexOf(r.key);
-			if (i >= 0) r.arr.splice(i, 1);
-		}
-		for (const r of refs) if (r.arr.length === 0 && r.layerId != null) {
-			const L = this.project.layers.find((l) => l.id === r.layerId);
-			if (L && L.keys) {
-				for (const k in L.keys) if (L.keys[k] === r.arr) delete L.keys[k];
-			}
-		}
-		const gone = new Set(refs.map((r) => r.key));
-		this.kfSel = (this.kfSel || []).filter((r) => !gone.has(r.key));
-		this.toast(refs.length + "개 키프레임 삭제", 1200);
-		this.commitKeys();
-	},
-	copyKeys() {
-		const sel = this.kfSel || [];
-		if (!sel.length) {
-			this.toast("선택된 키프레임이 없습니다");
-			return;
-		}
-		const minT = Math.min(...sel.map((r) => r.key.t));
-		this.kfClip = sel.map((r) => ({
-			keyId: r.keyId,
-			dt: r.key.t - minT,
-			v: r.key.v,
-			e: r.key.e
-		}));
-		this.toast("키프레임 " + sel.length + "개 복사 — Ctrl+V로 재생헤드 위치에 붙여넣기", 1800);
-	},
-	pasteKeys() {
-		const clip = this.kfClip;
-		if (!clip || !clip.length) {
-			this.toast("복사된 키프레임이 없습니다");
-			return;
-		}
-		const P = this.project, fps = P.fps, L = this.selLayer(), base = +this.t;
-		const newSel = [];
-		const arrs = /* @__PURE__ */ new Set();
-		for (const c of clip) {
-			let arr;
-			if (c.keyId === "__speed__") arr = P.speedKeys;
-			else {
-				if (!L) continue;
-				arr = L.keys[c.keyId] = L.keys[c.keyId] || [];
-			}
-			const t = Math.max(0, Math.min(P.duration, Math.round((base + c.dt) * fps) / fps));
-			let k = arr.find((x) => Math.abs(x.t - t) < .5 / fps);
-			if (k) {
-				k.v = c.v;
-				k.e = c.e;
-			} else {
-				k = {
-					t,
-					v: c.v,
-					e: c.e
-				};
-				arr.push(k);
-			}
-			newSel.push({
-				arr,
-				key: k,
-				keyId: c.keyId,
-				layerId: c.keyId === "__speed__" ? null : L ? L.id : null
-			});
-			arrs.add(arr);
-		}
-		for (const a of arrs) a.sort((p, q) => p.t - q.t);
-		this.kfSel = newSel;
-		this.toast(newSel.length + "개 붙여넣기", 1200);
-		this.commitKeys();
-	},
-	snapTargets(exclude) {
-		const P = this.project, ex = new Set(exclude), out = [
-			0,
-			P.duration,
-			+this.t
-		];
-		for (const m of P.markers) out.push(m.t);
-		for (const row of this._tlRows || []) for (const k of row.ks) if (!ex.has(k)) out.push(k.t);
-		return out;
-	},
-	commitKeys() {
-		this.save();
-		this.refreshInspectorValues();
-		this.drawTimeline();
-		this.needsRender = true;
-		if (!this.playing) {
-			clearTimeout(this._resimT);
-			this._resimT = setTimeout(() => {
-				const f = this.engine.frame;
-				this.engine.reset();
-				this.seekAsync(f);
-			}, 300);
-		}
-	}
-});
 Object.assign(RL, {
 	imageToAsset,
 	videoToAtlas
-});</script>
+});
+// src/app/App.js
+var App = class {
+	constructor() {
+		this.engine = new Engine($("#gl"));
+		this.audio = new Audio();
+		this.exporter = new Exporter(this);
+		this.view = {
+			guides: true,
+			thumb: false
+		};
+		this.engine.view.checker = true;
+		this.playing = false;
+		this.sel = null;
+		this.exporting = false;
+		this.seekToken = 0;
+		this.fpsCount = 0;
+		this.fpsTime = performance.now();
+		this.fpsShown = 0;
+		this.native = window.rlabNative || null;
+		if (this.native) {
+			for (const e of $$(".native-only")) e.classList.remove("hidden");
+			$("#ver").textContent = "v" + this.native.version + " Desktop";
+			document.title = "RESONANCE LAB Desktop";
+		}
+		this.buildStatic();
+		this.bind();
+		this.initV4();
+		let p = null;
+		try {
+			const s = localStorage.getItem("rlab.autosave");
+			if (s) p = JSON.parse(s);
+		} catch (e) {
+			p = null;
+		}
+		this.loadProject(p || presets.s1_2.make(), !p);
+		this.historyReset();
+		new ResizeObserver(() => {
+			this.layoutStage();
+			this.drawTimeline();
+		}).observe($("#viewport"));
+		new ResizeObserver(() => this.drawTimeline()).observe($("#timeline"));
+		requestAnimationFrame((t) => this.tick(t));
+	}
+	get project() {
+		return this.engine.project;
+	}
+	get t() {
+		return this.engine.frame / this.project.fps;
+	}
+	get totalFrames() {
+		return Math.max(1, Math.round(this.project.duration * this.project.fps));
+	}
+	normalize(p) {
+		const d = defaultProject();
+		const o = Object.assign(d, p || {});
+		o.bg = Object.assign(defaultProject().bg, (p || {}).bg || {});
+		o.post = Object.assign(defaultProject().post, (p || {}).post || {});
+		o.impact = Object.assign(defaultProject().impact, (p || {}).impact || {});
+		o.markers = (o.markers || []).filter((m) => isFinite(m.t)).sort((a, b) => a.t - b.t);
+		o.speedKeys = o.speedKeys || [];
+		o.layers = (o.layers || []).filter((l) => modules[l.type]).map((l) => {
+			const fresh = newLayer(l.type);
+			const out = Object.assign(fresh, l);
+			out.params = Object.assign(newLayer(l.type).params, l.params || {});
+			out.react = Object.assign(defaultReact(), l.react || {});
+			out.keys = l.keys || {};
+			return out;
+		});
+		return o;
+	}
+	loadProject(p, fromPreset, keepSel) {
+		this.pause();
+		this.kfSel = [];
+		if (!this._restoring && this.flushHistory && this.hist) this.flushHistory();
+		const P = this.normalize(p);
+		this.engine.load(P);
+		this.sel = keepSel && P.layers.some((l) => l.id === keepSel) ? keepSel : P.layers.length ? P.layers[P.layers.length - 1].id : null;
+		this.syncHeader();
+		this.renderLayerList();
+		this.renderInspector();
+		this.renderBg();
+		this.renderPost();
+		this.renderTimePanel();
+		this.afterRebuild();
+		this.updateMarkerCount();
+		this.save(true);
+	}
+	afterRebuild() {
+		this.layoutStage();
+		this.engine.reset();
+		this.engine.stepFrame();
+		this.needsRender = true;
+		this.drawTimeline();
+	}
+	save(now) {
+		if (now && this.flushHistory) {
+			this._saveT = 1;
+			this.flushHistory();
+			return;
+		}
+		clearTimeout(this._saveT);
+		this._saveT = setTimeout(() => {
+			const j = JSON.stringify(this.project);
+			this.historyCommit(j);
+			try {
+				localStorage.setItem("rlab.autosave", j);
+			} catch (e) {}
+		}, 450);
+	}
+	buildStatic() {
+		const ps = $("#preset");
+		ps.append(h("option", {
+			value: "",
+			text: "— 씬 프리셋 불러오기 —"
+		}));
+		for (const k in presets) ps.append(h("option", {
+			value: k,
+			text: presets[k].label
+		}));
+		const add = $("#addBtns");
+		for (const k in modules) {
+			const M = modules[k];
+			add.append(h("button", {
+				title: M.label + " 레이어 추가",
+				onclick: () => this.addLayer(k)
+			}, h("span", { text: M.icon }), M.label));
+		}
+	}
+	syncHeader() {
+		const P = this.project;
+		$("#projName").value = P.name;
+		const key = P.width + "x" + P.height;
+		const opt = $$("#size option").find((o) => o.value === key);
+		$("#size").value = opt ? key : "custom";
+		$("#customSize").classList.toggle("hidden", !!opt);
+		$("#cw").value = P.width;
+		$("#ch").value = P.height;
+		$("#faces").value = P.faces;
+		$("#fps").value = String(P.fps);
+		$("#dur").value = P.duration;
+		$("#seed").value = P.seed;
+		$("#scale").value = String(this.engine.scale);
+		for (const b of $$(".tg")) {
+			const k = b.dataset.view;
+			b.classList.toggle("on", k === "wrap" ? !!P.wrap : k in this.view ? !!this.view[k] : !!this.engine.view[k]);
+		}
+		$("#exTo").value = P.duration;
+	}
+	bind() {
+		const P = () => this.project;
+		$("#projName").addEventListener("input", (e) => {
+			P().name = e.target.value;
+			this.save();
+		});
+		$("#preset").addEventListener("change", (e) => {
+			const k = e.target.value;
+			e.target.value = "";
+			if (!k) return;
+			if (P().layers.length && !confirm("현재 작업을 프리셋으로 바꿀까요? 저장하지 않은 변경은 사라집니다.")) return;
+			this.loadProject(presets[k].make(), true);
+		});
+		$("#size").addEventListener("change", (e) => {
+			const v = e.target.value;
+			$("#customSize").classList.toggle("hidden", v !== "custom");
+			if (v === "custom") return;
+			const [w, hh] = v.split("x").map(Number);
+			this.setSize(w, hh);
+		});
+		const cs = () => this.setSize(Math.max(64, +$("#cw").value | 0), Math.max(64, +$("#ch").value | 0));
+		$("#cw").addEventListener("change", cs);
+		$("#ch").addEventListener("change", cs);
+		$("#faces").addEventListener("change", (e) => {
+			P().faces = Math.max(1, Math.min(12, +e.target.value | 0));
+			this.resetSim();
+		});
+		$("#fps").addEventListener("change", (e) => {
+			P().fps = +e.target.value;
+			this.resetSim();
+		});
+		$("#dur").addEventListener("change", (e) => {
+			P().duration = Math.max(1, +e.target.value);
+			this.drawTimeline();
+			this.save();
+		});
+		$("#seed").addEventListener("change", (e) => {
+			P().seed = +e.target.value | 0;
+			this.resetSim();
+		});
+		$("#seedNew").addEventListener("click", () => {
+			P().seed = Math.floor(Math.random() * 99999);
+			$("#seed").value = P().seed;
+			this.resetSim();
+		});
+		$("#scale").addEventListener("change", (e) => {
+			this.engine.scale = +e.target.value;
+			const f = this.engine.frame;
+			this.engine.rebuild();
+			this.afterRebuild();
+			this.seekAsync(f);
+		});
+		for (const b of $$(".tg")) b.addEventListener("click", () => {
+			const k = b.dataset.view;
+			if (k === "wrap") {
+				this.setWrap(!P().wrap);
+				return;
+			}
+			if (k in this.view) this.view[k] = !this.view[k];
+			else this.engine.view[k] = !this.engine.view[k];
+			b.classList.toggle("on");
+			$("#thumbBox").classList.toggle("hidden", !this.view.thumb);
+			this.drawGuides();
+			this.needsRender = true;
+		});
+		$("#btnSave").addEventListener("click", async () => {
+			const json = JSON.stringify(P(), null, 2), name = safeName(P().name) + ".rlab.json";
+			if (!this.native) {
+				download(new Blob([json], { type: "application/json" }), name);
+				return;
+			}
+			try {
+				const f = await this.native.saveDialog(name, "json");
+				if (f) {
+					await this.native.writePath(f, new TextEncoder().encode(json));
+					this.nativePath = f;
+					this.toast && this.toast("저장: " + f, 2200);
+				}
+			} catch (err) {
+				report("error", "저장 실패", err);
+				alert("저장 실패: " + err.message);
+			}
+		});
+		$("#btnOpen").addEventListener("click", async () => {
+			if (!this.native) {
+				$("#fileOpen").click();
+				return;
+			}
+			try {
+				const r = await this.native.openProject();
+				if (r) {
+					const o = JSON.parse(r.text);
+					if (o.type === "rlab-act") this.loadAct(r.text, r.path);
+					else this.loadProject(o);
+				}
+			} catch (err) {
+				alert("프로젝트 파일을 읽을 수 없습니다: " + err.message);
+			}
+		});
+		$("#exShow").addEventListener("click", () => {
+			if (this.native && this.lastOut) this.native.showItem(this.lastOut);
+		});
+		$("#fileOpen").addEventListener("change", async (e) => {
+			const f = e.target.files[0];
+			e.target.value = "";
+			if (!f) return;
+			try {
+				const tx = await f.text(), o = JSON.parse(tx);
+				if (o.type === "rlab-act") this.loadAct(tx, f.name);
+				else this.loadProject(o);
+			} catch (err) {
+				alert("프로젝트 파일을 읽을 수 없습니다: " + err.message);
+			}
+		});
+		$("#btnStill").addEventListener("click", () => this.runExport(() => this.exporter.stillFrame(Math.max(0, this.engine.frame - 1)), "현재 프레임 저장 중"));
+		$("#btnRender").addEventListener("click", () => this.openModal());
+		for (const b of $$("#bgMode button")) b.addEventListener("click", () => {
+			P().bg.mode = b.dataset.v;
+			this.renderBg();
+			this.needsRender = true;
+			this.save();
+		});
+		$("#bgColor").addEventListener("input", (e) => {
+			P().bg.color = e.target.value;
+			this.renderBg();
+			this.needsRender = true;
+			this.save();
+		});
+		$("#bgHex").addEventListener("change", (e) => {
+			let v = e.target.value.trim();
+			if (!v.startsWith("#")) v = "#" + v;
+			if (/^#[0-9a-f]{6}$/i.test(v)) {
+				P().bg.color = v.toLowerCase();
+				this.renderBg();
+				this.needsRender = true;
+				this.save();
+			}
+		});
+		const hsv = () => {
+			const c = hsvToRgb(+$("#bgH").value, +$("#bgS").value, +$("#bgV").value);
+			P().bg.color = rgbToHex(...c);
+			this.renderBg(true);
+			this.needsRender = true;
+			this.save();
+		};
+		[
+			"#bgH",
+			"#bgS",
+			"#bgV"
+		].forEach((s) => $(s).addEventListener("input", hsv));
+		for (const b of $$("#chromaPreset button")) b.addEventListener("click", () => {
+			P().bg.chroma = b.dataset.v;
+			this.renderBg();
+			this.needsRender = true;
+			this.save();
+		});
+		$("#chromaColor").addEventListener("input", (e) => {
+			P().bg.chroma = e.target.value;
+			this.renderBg();
+			this.needsRender = true;
+			this.save();
+		});
+		$("#tPlay").addEventListener("click", () => this.togglePlay());
+		$("#tStart").addEventListener("click", () => {
+			this.pause();
+			this.seekAsync(1);
+		});
+		$("#tNext").addEventListener("click", () => {
+			this.pause();
+			this.seekAsync(this.engine.frame + 1);
+		});
+		$("#tPrev").addEventListener("click", () => {
+			this.pause();
+			this.seekAsync(Math.max(1, this.engine.frame - 1));
+		});
+		$("#aLoad").addEventListener("click", () => $("#fileAudio").click());
+		$("#fileAudio").addEventListener("change", async (e) => {
+			const f = e.target.files[0];
+			e.target.value = "";
+			if (!f) return;
+			try {
+				await this.audio.load(f);
+				$("#aName").textContent = f.name + " · " + this.audio.buffer.duration.toFixed(1) + "초";
+				if (this.audio.buffer.duration > P().duration && confirm("프로젝트 길이를 음원 길이(" + Math.ceil(this.audio.buffer.duration) + "초)에 맞출까요?")) {
+					P().duration = Math.ceil(this.audio.buffer.duration);
+					$("#dur").value = P().duration;
+				}
+				this.drawTimeline();
+			} catch (err) {
+				alert("오디오를 읽을 수 없습니다: " + err.message);
+			}
+		});
+		$("#aDetect").addEventListener("click", () => {
+			if (!this.audio.buffer) {
+				alert("먼저 오디오를 불러오세요.");
+				return;
+			}
+			const m = this.audio.onsets({
+				sensitivity: +$("#aSens").value,
+				minGap: +$("#aGap").value,
+				band: $("#aBand").value
+			});
+			P().markers = m;
+			this.markersChanged();
+		});
+		$("#bpmGrid").addEventListener("click", () => {
+			const bpm = +$("#bpm").value, from = +$("#bpmFrom").value;
+			if (!(bpm > 0)) return;
+			for (let t = from; t < P().duration; t += 60 / bpm) P().markers.push({
+				t: +t.toFixed(4),
+				s: 1
+			});
+			this.markersChanged();
+		});
+		$("#mTap").addEventListener("click", () => this.tap());
+		$("#mClear").addEventListener("click", () => {
+			if (!P().markers.length || confirm("마커 " + P().markers.length + "개를 모두 지울까요?")) {
+				P().markers = [];
+				this.markersChanged();
+			}
+		});
+		const tl = $("#timeline");
+		const tAt = (e) => {
+			const r = tl.getBoundingClientRect();
+			return Math.max(0, Math.min(P().duration, (e.clientX - r.left - 8) / (r.width - 16) * P().duration));
+		};
+		this._tAt = tAt;
+		tl.addEventListener("mousedown", (e) => this.tlDown(e));
+		window.addEventListener("mousemove", (e) => this.tlMove(e));
+		window.addEventListener("mouseup", (e) => this.tlUp(e));
+		tl.addEventListener("dblclick", (e) => {
+			const g = this.tlGeom(), y = this.tlLocalY(e), hit = this.kfAt(e);
+			if (hit) {
+				this.deleteKeys([hit]);
+				return;
+			}
+			if (y >= g.wy && y <= g.wy + g.wh) {
+				P().markers.push({
+					t: +tAt(e).toFixed(4),
+					s: 1
+				});
+				this.markersChanged();
+			}
+		});
+		tl.addEventListener("contextmenu", (e) => {
+			e.preventDefault();
+			const hit = this.kfAt(e);
+			if (hit) {
+				this.deleteKeys([hit]);
+				return;
+			}
+			const t = tAt(e), tol = 8 / (tl.getBoundingClientRect().width - 16) * P().duration;
+			let bi = -1, bd = tol;
+			P().markers.forEach((m, i) => {
+				const d = Math.abs(m.t - t);
+				if (d < bd) {
+					bd = d;
+					bi = i;
+				}
+			});
+			if (bi >= 0) {
+				P().markers.splice(bi, 1);
+				this.markersChanged();
+			}
+		});
+		for (const b of $$("#exFmt button")) b.addEventListener("click", () => {
+			this.exFmt = b.dataset.v;
+			this.updateModal();
+		});
+		$("#exCancel").addEventListener("click", () => {
+			if (this.exporting) this.exporter.cancel = true;
+			else $("#modal").classList.add("hidden");
+		});
+		$("#exGo").addEventListener("click", () => this.startExport());
+		["#exFrom", "#exTo"].forEach((s) => $(s).addEventListener("input", () => this.updateModal()));
+		window.addEventListener("keydown", (e) => {
+			if (this.shortcut(e)) return;
+			if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && document.activeElement.type !== "range" && document.activeElement.type !== "checkbox") return;
+			if (e.code === "Space") {
+				e.preventDefault();
+				this.togglePlay();
+			} else if (e.code === "ArrowRight") {
+				this.pause();
+				this.seekAsync(this.engine.frame + (e.shiftKey ? 10 : 1));
+			} else if (e.code === "ArrowLeft") {
+				this.pause();
+				this.seekAsync(Math.max(1, this.engine.frame - (e.shiftKey ? 10 : 1)));
+			} else if (e.code === "Home") {
+				this.pause();
+				this.seekAsync(1);
+			} else if (e.code === "KeyT") this.tap();
+		});
+	}
+	setSize(w, hh) {
+		const P = this.project;
+		P.width = w - w % 2;
+		P.height = hh - hh % 2;
+		this.engine.rebuild();
+		this.afterRebuild();
+		this.syncHeader();
+		this.save();
+	}
+	resetSim() {
+		const f = this.engine.frame;
+		this.engine.reset();
+		this.afterRebuild();
+		this.seekAsync(f);
+		this.save();
+	}
+	addLayer(type) {
+		const P = this.project;
+		const L = newLayer(type);
+		let n = 1;
+		while (P.layers.some((x) => x.name === L.name + (n > 1 ? " " + n : ""))) n++;
+		if (n > 1) L.name += " " + n;
+		P.layers.push(L);
+		this.engine.syncLayers();
+		this.sel = L.id;
+		this.renderLayerList();
+		this.renderInspector();
+		this.needsRender = true;
+		this.updateBgWarn();
+		this.save(true);
+	}
+	layerAction(id, act) {
+		const P = this.project, i = P.layers.findIndex((l) => l.id === id);
+		if (i < 0) return;
+		const L = P.layers[i];
+		if (act === "toggle") L.enabled = !L.enabled;
+		else if (act === "up" && i < P.layers.length - 1) [P.layers[i], P.layers[i + 1]] = [P.layers[i + 1], P.layers[i]];
+		else if (act === "down" && i > 0) [P.layers[i], P.layers[i - 1]] = [P.layers[i - 1], P.layers[i]];
+		else if (act === "dup") {
+			const c = JSON.parse(JSON.stringify(L));
+			c.id = "L" + Math.random().toString(36).slice(2, 8);
+			c.name += " 복제";
+			P.layers.splice(i + 1, 0, c);
+			this.sel = c.id;
+		} else if (act === "del") {
+			if (!confirm("\"" + L.name + "\" 레이어를 삭제할까요?")) return;
+			P.layers.splice(i, 1);
+			if (this.sel === id) this.sel = P.layers.length ? P.layers[P.layers.length - 1].id : null;
+		}
+		this.engine.syncLayers();
+		if (act === "dup") {
+			const EL = this.engine.layers.find((x) => x.id === this.sel);
+			if (EL) EL.needsReset = true;
+		}
+		this.renderLayerList();
+		this.renderInspector();
+		this.needsRender = true;
+		this.updateBgWarn();
+		this.save(true);
+	}
+};
+Object.assign(App.prototype, inspector, transport, stage, timeline, exportDialog, menus, clipboard, history, shelf, assets);
+window.addEventListener("DOMContentLoaded", () => {
+	try {
+		window.app = new App();
+	} catch (e) {
+		console.error(e);
+		const N = window.rlabNative;
+		document.body.innerHTML = "<div style=\"padding:40px;color:#ddd;font:14px sans-serif;line-height:1.7\">RESONANCE LAB을 시작할 수 없습니다.<br><br><b>" + e.message + "</b><br><br>" + (N ? "이 PC의 그래픽 가속(GPU)이 WebGL2를 지원하지 않거나 막혀 있을 수 있습니다.<br><button id=\"rlSafe\" style=\"margin-top:12px;padding:8px 16px;font-size:14px\">호환 모드(소프트웨어 렌더링)로 다시 시작</button> <button id=\"rlNorm\" style=\"padding:8px 16px;font-size:14px\">일반 모드로 다시 시작</button><div id=\"rlLog\" style=\"margin-top:14px;color:#888;font-size:12px\"></div>" : "Chrome 또는 Edge 최신 버전에서 열고, 설정 → 시스템 → 「가능한 경우 그래픽 가속 사용」을 켜 주세요.") + "</div>";
+		if (N) {
+			document.getElementById("rlSafe").onclick = () => N.relaunch(true);
+			document.getElementById("rlNorm").onclick = () => N.relaunch(false);
+			N.logPath && N.logPath().then((p) => {
+				document.getElementById("rlLog").textContent = "로그: " + p;
+			});
+			N.startFail && N.startFail(e.message);
+		}
+	}
+});
+Object.assign(RL, { App });</script>
   <style rel="stylesheet" crossorigin>:root{
   --bg:#0c0d10; --panel:#131519; --panel2:#181b20; --line:#23272e; --line2:#2d323a;
   --tx:#d9dce1; --tx2:#8d939c; --tx3:#5f656e; --acc:#e7b04a; --acc2:#f2c879; --warn:#ff8b5c;

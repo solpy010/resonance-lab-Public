@@ -8,12 +8,13 @@
     "dev": "vite",
     "build": "node build.mjs",
     "build:work": "node build.mjs --work",
-    "test": "node build.mjs && eslint . && tsc -p tsconfig.json && node tests/schema.mjs && node tests/desktop.mjs && node tests/regress.mjs",
+    "test": "node build.mjs && eslint . && tsc -p tsconfig.json && node tests/schema.mjs && node tests/desktop.mjs && node tests/ui.mjs && node tests/regress.mjs",
     "test:update": "node build.mjs && node tests/regress.mjs --update",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
     "test:schema": "node tests/schema.mjs",
-    "test:desktop": "node tests/desktop.mjs"
+    "test:desktop": "node tests/desktop.mjs",
+    "test:ui": "node tests/ui.mjs"
   },
   "dependencies": {
     "mp4-muxer": "^5.2.2"

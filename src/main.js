@@ -26,5 +26,4 @@ import './presets.js';
 import 'virtual:work-titles';   // 작업판 빌드에서만 내용이 들어감 (build.mjs --work)
 import './audio.js';
 import './export.js';
-import './ui.js';
-import './ui2.js';
+import './app/App.js';
