@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as robotMesh from './robot_mesh.js';
 // ROBOT — RB20-1900ES 로봇팔 군무 (3D 메시, 6축 관절, 구부정 기본 자세, 스타일·템포·다양성·재질·색 흐름)
 // 뿌리(베이스)는 바닥에 고정, 모든 움직임은 관절 회전으로만. 위로 곧게 뻗는 자세는 관절 제한으로 막는다.
 
@@ -49,7 +50,7 @@ import * as webgl from './gl.js';
   function decodeMesh() {
     const b = (s, T) => { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new T(u.buffer); };
     const P = [], N = [], T = [], Lk = [], E = [], EL = [];
-    RL.ROBOT_MESH.forEach((l, li) => {
+    robotMesh.ROBOT_MESH.forEach((l, li) => {
       const p = b(l.p, Int16Array), n = b(l.n, Int8Array), t = b(l.t, Uint8Array), e = b(l.e, Int16Array);
       for (let i = 0; i < p.length; i++) { P.push(p[i]); N.push(n[i]); }
       for (let i = 0; i < t.length; i++) { T.push(t[i]); Lk.push(li); }
