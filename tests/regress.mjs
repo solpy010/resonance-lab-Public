@@ -2,6 +2,7 @@
 //   node tests/regress.mjs            검사 (app/RESONANCE_LAB.html 기준 — 먼저 node build.mjs)
 //   node tests/regress.mjs --update   기준 프레임 다시 저장 (의도한 화면 변경일 때만)
 //   CHROME_PATH=... 로 크롬 경로 지정 가능. 렌더는 항상 SwiftShader(CPU)로 해서 PC·GPU가 달라도 같은 결과를 낸다.
+/* global window, document, RL, app -- page.evaluate 안에서 브라우저 쪽 이름 */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
