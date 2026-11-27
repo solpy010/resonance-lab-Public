@@ -2,6 +2,7 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as batches from './batch.js';
+import * as icons from './builtins.js';
 // RESONANCE LAB — engine: deterministic frame clock, layer graph, 2층 post, background/alpha output
 
 RL.modules = {};
@@ -416,7 +417,7 @@ RL.Engine = class {
   assetsReady() { this.syncAssets(); return Promise.all([...this.assets.values()].map(a => a.promise)); }
   asset(id) { const a = id && this.assets.get(id); return a && a.ready && a.tex ? a : null; }
   builtin(name) {
-    if (!this.builtins[name]) { const c = RL.drawBuiltin(name); if (c) this.builtins[name] = { tex: webgl.uploadImage(this.gl, c.canvas), cols: c.cols || 1, rows: c.rows || 1, frames: c.frames || 1, w: c.canvas.width, h: c.canvas.height, luma: false, ready: true }; }
+    if (!this.builtins[name]) { const c = icons.drawBuiltin(name); if (c) this.builtins[name] = { tex: webgl.uploadImage(this.gl, c.canvas), cols: c.cols || 1, rows: c.rows || 1, frames: c.frames || 1, w: c.canvas.width, h: c.canvas.height, luma: false, ready: true }; }
     return this.builtins[name];
   }
 

@@ -840,7 +840,7 @@ Object.assign(RL, {
 	TexBatch
 });
 // src/builtins.js
-RL.drawBuiltin = function(name) {
+var drawBuiltin = function(name) {
 	const mk = (w, h) => {
 		const c = document.createElement("canvas");
 		c.width = w;
@@ -1080,6 +1080,7 @@ RL.drawBuiltin = function(name) {
 	}
 	return null;
 };
+Object.assign(RL, { drawBuiltin });
 // src/engine.js
 RL.modules = {};
 RL.FACE_NAMES = "ABCDEFGHIJKL".split("");
@@ -1773,7 +1774,7 @@ RL.Engine = class {
 	}
 	builtin(name) {
 		if (!this.builtins[name]) {
-			const c = RL.drawBuiltin(name);
+			const c = drawBuiltin(name);
 			if (c) this.builtins[name] = {
 				tex: uploadImage(this.gl, c.canvas),
 				cols: c.cols || 1,

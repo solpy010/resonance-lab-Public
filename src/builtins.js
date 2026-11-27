@@ -2,7 +2,7 @@
 import { RL } from './core/rl.js';
 // Built-in line-art graphics drawn in code (white strokes → tinted in the shader). Replaceable by user images/videos.
 
-RL.drawBuiltin = function (name) {
+export const drawBuiltin = function (name) {
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
   const line = (g, w) => { g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = w; g.lineJoin = 'round'; g.lineCap = 'round'; };
 
@@ -101,3 +101,6 @@ RL.drawBuiltin = function (name) {
   }
   return null;
 };
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { drawBuiltin });
