@@ -1,7 +1,7 @@
 {
   "name": "resonance-lab",
   "productName": "RESONANCE LAB",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "description": "RESONANCE LAB — offline WebGL visual simulator for live-performance media art",
   "main": "main.cjs",
   "author": "Solpy",

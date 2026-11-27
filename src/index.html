@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RESONANCE LAB</title>
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<nav id="menubar"></nav>
+<header id="top">
+  <div class="brand"><span class="mark"></span><b>RESONANCE LAB</b><i id="ver">v__RLAB_VERSION__</i></div>
+  <input id="projName" class="name" spellcheck="false" title="프로젝트 이름(파일명에 사용)">
+  <label class="fld">씬 프리셋<select id="preset"></select></label>
+  <label class="fld">해상도<select id="size">
+    <option value="3840x640">3840×640 (6:1)</option>
+    <option value="4096x420">4096×420 (벽면 9.74:1)</option>
+    <option value="4096x640">4096×640</option>
+    <option value="3508x2160">3508×2160 (1면)</option>
+    <option value="1920x1080">1920×1080</option>
+    <option value="custom">사용자 지정</option>
+  </select></label>
+  <span id="customSize" class="fld hidden"><input id="cw" type="number" min="64" max="8192" step="2">×<input id="ch" type="number" min="64" max="8192" step="2"></span>
+  <label class="fld">면 수<input id="faces" type="number" min="1" max="12" step="1"></label>
+  <label class="fld">FPS<select id="fps"><option>24</option><option>25</option><option>30</option><option>60</option></select></label>
+  <label class="fld">길이(초)<input id="dur" type="number" min="1" max="1200" step="1"></label>
+  <label class="fld">Seed<input id="seed" type="number" step="1"><button id="seedNew" class="ic" title="새 시드">⟳</button></label>
+  <div class="spacer"></div>
+  <button id="btnOpen">열기</button>
+  <button id="btnSave">저장</button>
+  <button id="btnStill">현재 프레임 PNG</button>
+  <button id="btnRender" class="primary">렌더 / 출력</button>
+  <input id="fileOpen" type="file" accept=".json,.rlab" class="hidden">
+</header>
+
+<aside id="left">
+  <section>
+    <h3>레이어 <small>1층 · 형태</small></h3>
+    <div id="addBtns" class="addgrid"></div>
+    <ul id="layerList"></ul>
+  </section>
+  <section>
+    <h3>배경 <small>출력 배경</small></h3>
+    <div class="seg" id="bgMode">
+      <button data-v="solid">단색</button><button data-v="black">블랙</button><button data-v="chroma">크로마</button><button data-v="transparent">투명</button>
+    </div>
+    <div id="bgSolid">
+      <div class="row"><input type="color" id="bgColor"><input id="bgHex" class="hex" spellcheck="false"></div>
+      <div class="sl"><span>색상 H</span><input type="range" id="bgH" min="0" max="360" step="1"><em id="bgHv"></em></div>
+      <div class="sl"><span>채도 S</span><input type="range" id="bgS" min="0" max="100" step="1"><em id="bgSv"></em></div>
+      <div class="sl"><span>명도 V</span><input type="range" id="bgV" min="0" max="100" step="1"><em id="bgVv"></em></div>
+    </div>
+    <div id="bgChroma" class="hidden">
+      <div class="seg small" id="chromaPreset"><button data-v="#00b140">그린</button><button data-v="#0047bb">블루</button></div>
+      <div class="row"><input type="color" id="chromaColor"><span class="note">사용자 지정</span></div>
+    </div>
+    <p id="bgWarn" class="warn hidden">반투명·발광 요소가 있어 크로마 키잉 시 가장자리 색 번짐이 생깁니다. <b>투명</b> 또는 <b>블랙</b> 출력을 권장합니다.</p>
+    <p id="bgNote" class="note hidden">투명: PNG 시퀀스에 알파 채널로 저장됩니다(MP4는 알파 미지원).</p>
+  </section>
+  <section>
+    <h3>후처리 <small>2층 · 물성·빛</small></h3>
+    <div id="postPanel"></div>
+  </section>
+  <section>
+    <h3>연출 <small>3층 · 시간·사건</small></h3>
+    <div id="timePanel"></div>
+  </section>
+</aside>
+
+<main id="center">
+  <div class="viewbar">
+    <label class="fld">미리보기<select id="scale"><option value="0.25">25%</option><option value="0.5">50%</option><option value="1">100%</option></select></label>
+    <div class="toggles">
+      <button class="tg" data-view="guides">면 가이드</button>
+      <button class="tg" data-view="grayscale">흑백</button>
+      <button class="tg" data-view="thumb">10% 축소</button>
+      <button class="tg" data-view="glowOff">글로우 끄기</button>
+      <button class="tg" data-view="checker">체커보드</button>
+      <button class="tg" data-view="seam" title="화면을 반 바퀴 돌려 좌우 끝 이음새를 가운데에서 확인">이음새 확인</button>
+      <button class="tg" data-view="wrap" title="왼쪽·오른쪽 끝을 이어 360° 원통 공간처럼 연결">360° 좌우 연결</button>
+    </div>
+    <div class="zoombox"><button id="zOut" class="ic" title="축소 (Ctrl+−)">−</button><span id="zVal" class="mono">맞춤</span><button id="zIn" class="ic" title="확대 (Ctrl+=)">+</button><button id="zFit" title="화면에 맞춤 (Ctrl+0 · 미리보기 더블클릭)">맞춤</button></div>
+    <div class="spacer"></div>
+    <span id="stats" class="mono"></span>
+  </div>
+  <div id="viewport">
+    <div id="stage"><canvas id="gl"></canvas><canvas id="guides"></canvas></div>
+    <div id="thumbBox" class="hidden"><canvas id="thumb"></canvas><span>10% 축소 검수</span></div>
+    <div id="busy" class="hidden"><div><b id="busyText">재계산 중…</b><div class="bar"><i id="busyBar"></i></div></div></div>
+  </div>
+</main>
+
+<div id="splitL" class="split v" title="드래그: 왼쪽 패널 너비"></div>
+<div id="splitR" class="split v" title="드래그: 오른쪽 패널 너비"></div>
+<div id="splitB" class="split h" title="드래그: 타임라인 높이"></div>
+<aside id="right">
+  <div id="inspector"><p class="empty">레이어를 선택하세요.</p></div>
+</aside>
+
+<footer id="bottom">
+  <div class="transport">
+    <button id="tStart" class="ic" title="처음으로 (Home)">⏮</button>
+    <button id="tPlay" class="ic big" title="재생/정지 (Space)">▶</button>
+    <button id="tPrev" class="ic" title="이전 프레임 (←)">◀︎</button>
+    <button id="tNext" class="ic" title="다음 프레임 (→)">▶︎</button>
+    <span id="tTime" class="mono">00:00.00</span>
+    <label class="chk"><input type="checkbox" id="tLoop" checked>반복</label>
+    <div class="spacer"></div>
+    <button id="aLoad">오디오 불러오기</button><span id="aName" class="note"></span>
+    <label class="chk"><input type="checkbox" id="aPlay" checked>재생 시 소리</label>
+    <label class="fld">대역<select id="aBand"><option value="full">전체</option><option value="low">저음(북·베이스)</option><option value="high">고음(꽹과리)</option></select></label>
+    <label class="fld">감도<input type="range" id="aSens" min="0" max="1" step="0.01" value="0.5"></label>
+    <label class="fld">최소 간격<input type="number" id="aGap" min="0.02" max="2" step="0.01" value="0.12"></label>
+    <button id="aDetect">타격 검출 → 마커</button>
+    <label class="fld">BPM<input type="number" id="bpm" min="20" max="300" step="1" value="120"></label>
+    <label class="fld">시작<input type="number" id="bpmFrom" min="0" step="0.01" value="0"></label>
+    <button id="bpmGrid">BPM 그리드</button>
+    <button id="mTap" title="재생 중 T 키">탭(T)</button>
+    <button id="mClear">마커 지우기</button>
+    <span id="mCount" class="note"></span>
+    <input id="fileAudio" type="file" accept="audio/*" class="hidden">
+  </div>
+  <canvas id="timeline"></canvas>
+  <div class="tlhelp">클릭: 이동 · 더블클릭: 마커 추가 · 우클릭: 가까운 마커 삭제 · ◆ 키프레임은 선택한 레이어 기준</div>
+</footer>
+
+<div id="shelf">
+  <div class="shelfHead">
+    <b>씬 백업</b><small>Ctrl+S로 저장 · 클릭하면 불러옴</small>
+    <button id="shPrev" class="ic" title="이전 씬 (PageUp)">◀</button><button id="shNext" class="ic" title="다음 씬 (PageDown)">▶</button>
+    <button id="shAdd" title="현재 상태를 새 씬으로 백업 (Ctrl+S)">+ 백업</button>
+    <button id="shSaveAct" title="모든 씬을 하나의 액트 파일로 저장">액트 저장</button>
+    <button id="shOpenAct" title="액트 파일 열기">액트 열기</button>
+    <span id="shInfo" class="note"></span>
+  </div>
+  <div id="shelfList"></div>
+</div>
+<input id="fileAct" type="file" accept=".json" class="hidden">
+<input id="fileAsset" type="file" accept="image/*,video/*" class="hidden">
+<div id="ctx" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+
+<div id="modal" class="hidden"><div class="box">
+  <h3>렌더 / 출력</h3>
+  <p class="note">출력은 항상 0프레임부터 100% 해상도로 다시 시뮬레이션합니다. 같은 프로젝트·Seed면 항상 같은 프레임이 나옵니다.</p>
+  <div class="seg" id="exFmt"><button data-v="png">PNG 시퀀스</button><button data-v="prores4444" class="native-only hidden">ProRes 4444 (알파)</button><button data-v="prores422hq" class="native-only hidden">ProRes 422 HQ</button><button data-v="mp4">MP4 (H.264)</button></div>
+  <div class="row"><label class="fld">시작(초)<input type="number" id="exFrom" min="0" step="0.1" value="0"></label><label class="fld">끝(초)<input type="number" id="exTo" min="0.1" step="0.1"></label></div>
+  <p id="exInfo" class="note"></p>
+  <div class="bar big"><i id="exBar"></i></div><p id="exStatus" class="mono"></p>
+  <div class="row right"><button id="exShow" class="hidden">폴더에서 보기</button><div class="spacer"></div><button id="exCancel">닫기</button><button id="exGo" class="primary">시작</button></div>
+</div></div>
+
+<div id="helpModal" class="hidden"><div class="box wide"><h3 id="helpTitle"></h3><div id="helpBody"></div><div class="row right"><button id="helpClose" class="primary">닫기</button></div></div></div>
+<script>/*__MP4MUXER__*/</script>
+<script>/*__JS__*/</script>
+</body>
+</html>

@@ -2,6 +2,7 @@ build/
 dist/
 node_modules/
 desktop/ffmpeg/
+local/
 *.log
 .DS_Store
 Thumbs.db

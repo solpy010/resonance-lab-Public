@@ -1,6 +1,6 @@
 RESONANCE LAB — 다른 PC/다른 위치에서 실행하기
 
-[가장 간단한 방법] RESONANCE_LAB_v0.5.6_portable.exe (Releases에서 받기)  (파일 1개)
+[가장 간단한 방법] RESONANCE_LAB_v0.5.7_portable.exe (Releases에서 받기)  (파일 1개)
   - 이 exe 하나만 USB·메일·공유폴더로 옮겨 더블클릭하면 됩니다. 설치 필요 없음.
   - 실행할 때마다 임시 폴더에 풀어서 켜지므로 첫 실행은 5~15초 걸릴 수 있습니다.
 
