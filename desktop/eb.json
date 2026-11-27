@@ -1,0 +1,12 @@
+{
+  "appId": "org.resonancelab.app",
+  "productName": "RESONANCE LAB",
+  "electronVersion": "33.2.1",
+  "directories": { "output": "../../dist" },
+  "files": ["main.cjs", "preload.cjs", "package.json", "app/**"],
+  "extraResources": [{ "from": "ffmpeg", "to": "ffmpeg", "filter": ["**/*"] }],
+  "asar": true,
+  "compression": "normal",
+  "win": { "target": [{ "target": "portable", "arch": ["x64"] }], "signAndEditExecutable": false },
+  "portable": { "artifactName": "RESONANCE_LAB_v${version}_portable.exe", "unpackDirName": "RESONANCE_LAB" }
+}

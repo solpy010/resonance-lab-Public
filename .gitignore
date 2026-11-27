@@ -1,0 +1,7 @@
+build/
+dist/
+node_modules/
+desktop/ffmpeg/
+*.log
+.DS_Store
+Thumbs.db
