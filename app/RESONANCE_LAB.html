@@ -10,7 +10,9 @@
   <script type="module" crossorigin>// src/core/rl.js
 var RL = window.RL = window.RL || {};
 // src/core/registry.js
+/** @type {Record<string, import('../types/rlab').LayerModule>} */
 var modules = {};
+/** @type {Record<string, import('../types/rlab').Preset>} */
 var presets = {};
 RL.modules = modules;
 RL.presets = presets;
@@ -1749,22 +1751,25 @@ var Engine = class {
 				ready: false,
 				tex: null
 			};
-			rec.promise = new Promise((res) => {
-				const img = new Image();
-				img.onload = () => {
-					rec.tex = uploadImage(gl, img);
-					rec.w = img.width;
-					rec.h = img.height;
-					rec.ready = true;
-					res();
-					if (this.onAssetLoad) this.onAssetLoad(id);
-				};
-				img.onerror = () => {
-					rec.ready = true;
-					res();
-				};
-				img.src = meta.src;
-			});
+			rec.promise = new Promise(
+				/** @param {(v?: any) => void} res */
+				(res) => {
+					const img = new Image();
+					img.onload = () => {
+						rec.tex = uploadImage(gl, img);
+						rec.w = img.width;
+						rec.h = img.height;
+						rec.ready = true;
+						res();
+						if (this.onAssetLoad) this.onAssetLoad(id);
+					};
+					img.onerror = () => {
+						rec.ready = true;
+						res();
+					};
+					img.src = meta.src;
+				}
+			);
 			this.assets.set(id, rec);
 		}
 	}
@@ -7644,6 +7649,7 @@ var FX_STYLES = [
 var FX_IDX = {};
 FX_STYLES.forEach((s, i) => FX_IDX[s.id] = i);
 var isShader = (P) => P.effectType === "shader";
+/** @type {import('../types/rlab').SchemaField[]} */
 var styleSchema = FX_CATS.map(([c, cn]) => ({
 	id: "fxStyle_" + c,
 	when: (P) => isShader(P) && P.fxCat === c,
@@ -12984,7 +12990,7 @@ Object.assign(RL, { ROBOT_MESH });
 						if (nb >= MAXB) return;
 						let ch = 1;
 						if (P.chase > 0) {
-							const step = Math.floor(B / P.chaseBeats), on = gid % k === step % k || ((gid + 1) % k === step % k ? .35 : 0);
+							const step = Math.floor(B / P.chaseBeats), on = gid % k === step % k ? 1 : (gid + 1) % k === step % k ? .35 : 0;
 							ch = 1 - P.chase + P.chase * on;
 						}
 						gid++;

@@ -28,6 +28,7 @@ const FX_STYLES = [
 ];
 const FX_IDX = {}; FX_STYLES.forEach((s, i) => FX_IDX[s.id] = i);
 const isShader = (P) => P.effectType === 'shader';
+/** @type {import('../types/rlab').SchemaField[]} */
 const styleSchema = FX_CATS.map(([c, cn]) => ({
   id: 'fxStyle_' + c, when: (P) => isShader(P) && P.fxCat === c, label: cn + ' — 종류', type: 'select',
   options: (FX_STYLES.filter(s => s.cat === c).length > 1 ? [['mix', '이 카테고리 안에서 섞기']] : []).concat(FX_STYLES.filter(s => s.cat === c).map(s => [s.id, s.name])),

@@ -8,9 +8,11 @@
     "dev": "vite",
     "build": "node build.mjs",
     "build:work": "node build.mjs --work",
-    "test": "node build.mjs && eslint . && node tests/regress.mjs",
+    "test": "node build.mjs && eslint . && tsc -p tsconfig.json && node tests/schema.mjs && node tests/regress.mjs",
     "test:update": "node build.mjs && node tests/regress.mjs --update",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:schema": "node tests/schema.mjs"
   },
   "dependencies": {
     "mp4-muxer": "^5.2.2"
@@ -19,6 +21,7 @@
     "eslint": "^10.15.0",
     "globals": "^17.14.0",
     "playwright-core": "^1.65.1",
+    "typescript": "^7.0.2",
     "vite": "^8.4.0",
     "vite-plugin-singlefile": "^2.3.4"
   }

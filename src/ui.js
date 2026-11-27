@@ -1,3 +1,4 @@
+// @ts-nocheck — 타입 검사 보류(로드맵 3단계: UI 메서드가 App.prototype 에 나중에 붙는 구조라 별도 정리 필요)
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';

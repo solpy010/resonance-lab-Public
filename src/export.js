@@ -129,7 +129,7 @@ export const Exporter = class {
       const codecs = ['avc1.640034', 'avc1.640033', 'avc1.640032', 'avc1.64002A'];
       let config = null;
       for (const c of codecs) {
-        const cfg = { codec: c, width: w, height: h, bitrate: Math.round(Math.max(8e6, w * h * P.fps * 0.18)), framerate: P.fps, latencyMode: 'quality' };
+        const cfg = { codec: c, width: w, height: h, bitrate: Math.round(Math.max(8e6, w * h * P.fps * 0.18)), framerate: P.fps, latencyMode: /** @type {LatencyMode} */ ('quality') };
         try { const s = await VideoEncoder.isConfigSupported(cfg); if (s.supported) { config = cfg; break; } } catch (e) { }
       }
       if (!config) throw new Error(`이 해상도(${w}×${h})의 H.264 인코딩을 지원하지 않습니다. PNG 시퀀스를 사용하세요.`);

@@ -405,7 +405,7 @@ export const Engine = class {
       if (this.assets.has(id)) continue;
       const meta = want[id];
       const rec = { src: meta.src, cols: meta.cols || 1, rows: meta.rows || 1, frames: meta.frames || 1, fps: meta.fps || 24, luma: !!meta.luma, kind: meta.kind, ready: false, tex: null };
-      rec.promise = new Promise((res) => {
+      rec.promise = new Promise(/** @param {(v?: any) => void} res */ (res) => {
         const img = new Image();
         img.onload = () => { rec.tex = webgl.uploadImage(gl, img); rec.w = img.width; rec.h = img.height; rec.ready = true; res(); if (this.onAssetLoad) this.onAssetLoad(id); };
         img.onerror = () => { rec.ready = true; res(); };

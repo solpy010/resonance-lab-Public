@@ -61,6 +61,7 @@ import * as registry from './core/registry.js';
   }
   let MESH = null;
 
+  /** @type {import('./types/rlab').SchemaField[]} */
   const schema = [
     // 배치
     { id: 'count', label: '로봇팔 수', type: 'range', min: 1, max: 24, step: 1, default: 6, group: '배치' },

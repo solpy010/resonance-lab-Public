@@ -123,7 +123,7 @@ import * as registry from './core/registry.js';
           const add = (u, v, ang, inten, c, len) => {
             if (nb >= MAXB) return;
             let ch = 1;
-            if (P.chase > 0) { const step = Math.floor(B / P.chaseBeats), on = ((gid % k) === (step % k)) || (((gid + 1) % k) === (step % k) ? 0.35 : 0); ch = 1 - P.chase + P.chase * on; }
+            if (P.chase > 0) { const step = Math.floor(B / P.chaseBeats), on = ((gid % k) === (step % k)) ? 1 : (((gid + 1) % k) === (step % k) ? 0.35 : 0); ch = 1 - P.chase + P.chase * on; }
             gid++;
             const lv = 1 - P.lengthVar * (0.15 + 0.85 * (((Math.sin((gid + 1) * 12.9898 + 78.233) * 43758.5453) % 1) + 1) % 1);
             bm.set([u, v, ang, inten * ch * strobeOn], nb * 4); bc.set([c[0], c[1], c[2], len * lv], nb * 4); nb++;

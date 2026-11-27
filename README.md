@@ -35,12 +35,13 @@ src/                    전체 소스 (ES 모듈, 평문)
   presets.js            프리셋 (씬 번호)
   audio.js export.js    오디오 분석 · PNG/MP4/ProRes 출력
   ui.js ui2.js index.html style.css   화면
+  types/                타입 정의 (npm run typecheck)
 build.mjs               src/ → app/RESONANCE_LAB.html (Vite, 파일 하나로 실행, 축약 없음)
 vite.config.mjs         개발 서버 설정 (npm run dev)
 app/RESONANCE_LAB.html  빌드 결과 (받아서 바로 실행)
 desktop/                Electron 데스크톱 셸 (main.cjs, preload.cjs, package.json, eb.json)
 tools/build_portable.sh Windows 포터블 exe · 폴더형 앱 빌드
-tests/                  회귀 검사 (regress.mjs, golden.json)
+tests/                  회귀 검사 (regress.mjs, golden.json) · 스키마 검사 (schema.mjs)
 docs/                   사용법 · 실행 안내 · 이미지
 ```
 
@@ -51,6 +52,8 @@ npm install          # 처음 한 번
 npm run dev          # 개발 서버 — 소스를 고치면 브라우저에 바로 반영
 npm run build        # src/ → app/RESONANCE_LAB.html (배포용 단일 파일)
 npm run lint         # 문법·선언 검사
+npm run typecheck    # 타입 검사 (JSDoc + TypeScript, src/types/)
+npm run test:schema  # 레이어 설정 항목·프리셋 값 검사 (수 초)
 
 # Windows 포터블 exe (선택) — desktop/ffmpeg/ffmpeg.exe 를 직접 넣은 뒤 (https://ffmpeg.org/download.html, 저장소에는 없음)
 bash tools/build_portable.sh   # → dist/public/RESONANCE_LAB_v<버전>_portable.exe
@@ -59,7 +62,7 @@ bash tools/build_portable.sh   # → dist/public/RESONANCE_LAB_v<버전>_portabl
 ### 회귀 검사
 
 ```bash
-npm test               # 빌드 + 검사: 프리셋 14개 + 리듬 다중참여 케이스 × 3시점 = 45장
+npm test               # 빌드 → 린트 → 타입 → 스키마 → 회귀(프리셋 14개 + 리듬 다중참여 케이스 × 3시점 = 45장)
 npm run test:update    # 기준 프레임 다시 저장 — 의도한 화면 변경일 때만
 ```
 
