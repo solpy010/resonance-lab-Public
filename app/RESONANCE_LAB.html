@@ -14508,7 +14508,7 @@ RL.presets = {};
 	};
 })();
 // src/audio.js
-RL.Audio = class {
+var Audio = class {
 	constructor() {
 		this.ctx = null;
 		this.buffer = null;
@@ -14627,6 +14627,7 @@ RL.Audio = class {
 		}
 	}
 };
+Object.assign(RL, { Audio });
 // node_modules/mp4-muxer/build/mp4-muxer.mjs
 var __accessCheck = (obj, member, msg) => {
 	if (!member.has(obj)) throw TypeError("Cannot " + msg);
@@ -16457,7 +16458,7 @@ var fmtTime = (t) => {
 RL.App = class {
 	constructor() {
 		this.engine = new Engine($("#gl"));
-		this.audio = new RL.Audio();
+		this.audio = new Audio();
 		this.exporter = new RL.Exporter(this);
 		this.view = {
 			guides: true,

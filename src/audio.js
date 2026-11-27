@@ -2,7 +2,7 @@
 import { RL } from './core/rl.js';
 // 3층: 오디오 불러오기 · 파형 · 온셋(타격) 검출 → 마커
 
-RL.Audio = class {
+export const Audio = class {
   constructor() { this.ctx = null; this.buffer = null; this.src = null; this.peaks = null; this.name = ''; }
   ensureCtx() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); return this.ctx; }
   async load(file) {
@@ -76,3 +76,6 @@ RL.Audio = class {
   }
   stop() { if (this.src) { try { this.src.stop(); } catch (e) { } this.src.disconnect(); this.src = null; } }
 };
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { Audio });

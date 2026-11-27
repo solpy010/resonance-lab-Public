@@ -2,6 +2,7 @@
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
+import * as audioLib from './audio.js';
 // RESONANCE LAB — application UI
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -22,7 +23,7 @@ const fmtTime = (t) => { const m = Math.floor(t / 60), s = t - m * 60; return St
 RL.App = class {
   constructor() {
     this.engine = new eng.Engine($('#gl'));
-    this.audio = new RL.Audio();
+    this.audio = new audioLib.Audio();
     this.exporter = new RL.Exporter(this);
     this.view = { guides: true, thumb: false };
     this.engine.view.checker = true;
