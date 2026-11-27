@@ -21,7 +21,7 @@ const h = (tag, attrs, ...kids) => {
 };
 const fmtTime = (t) => { const m = Math.floor(t / 60), s = t - m * 60; return String(m).padStart(2, '0') + ':' + s.toFixed(2).padStart(5, '0'); };
 
-RL.App = class {
+export const App = class {
   constructor() {
     this.engine = new eng.Engine($('#gl'));
     this.audio = new audioLib.Audio();
@@ -754,7 +754,7 @@ RL.App = class {
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-  try { window.app = new RL.App(); }
+  try { window.app = new App(); }
   catch (e) {
     console.error(e);
     const N = window.rlabNative;
@@ -771,3 +771,6 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 export { $, $$, h, fmtTime };
+
+// 호환 등록 — 디버그 콘솔과 아직 import 로 바뀌지 않은 곳을 위해 RL 에도 남겨 둔다
+Object.assign(RL, { App });

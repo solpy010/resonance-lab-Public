@@ -4,9 +4,10 @@ import { $, h } from './ui.js';
 import * as webgl from './gl.js';
 import * as eng from './engine.js';
 import * as exportLib from './export.js';
+import * as uiApp from './ui.js';
 // RESONANCE LAB — menubar, resizable panels, zoom/pan, undo/redo, scene shelf (Ctrl+S), acts, asset loading
 
-Object.assign(RL.App.prototype, {
+Object.assign(uiApp.App.prototype, {
   initV4() {
     this.zoom = 1; this.pan = { x: 0, y: 0 }; this.kfSel = []; this.kfClip = null;
     this.shelf = []; this.shelfActive = -1;
@@ -569,7 +570,7 @@ RL.videoToAtlas = async function (file, progress) {
 };
 
 // ---------------------------------------------------------------- timeline keyframe editing (v0.4)
-Object.assign(RL.App.prototype, {
+Object.assign(uiApp.App.prototype, {
   tlGeom() {
     const c = $('#timeline'), W = c.clientWidth, H = c.clientHeight, D = this.project.duration;
     const wy = 14, wh = Math.max(20, H * 0.38);

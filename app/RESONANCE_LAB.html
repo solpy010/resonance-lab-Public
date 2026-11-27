@@ -16462,7 +16462,7 @@ var fmtTime = (t) => {
 	const m = Math.floor(t / 60), s = t - m * 60;
 	return String(m).padStart(2, "0") + ":" + s.toFixed(2).padStart(5, "0");
 };
-RL.App = class {
+var App = class {
 	constructor() {
 		this.engine = new Engine($("#gl"));
 		this.audio = new Audio();
@@ -17937,7 +17937,7 @@ RL.App = class {
 };
 window.addEventListener("DOMContentLoaded", () => {
 	try {
-		window.app = new RL.App();
+		window.app = new App();
 	} catch (e) {
 		console.error(e);
 		const N = window.rlabNative;
@@ -17952,8 +17952,9 @@ window.addEventListener("DOMContentLoaded", () => {
 		}
 	}
 });
+Object.assign(RL, { App });
 // src/ui2.js
-Object.assign(RL.App.prototype, {
+Object.assign(App.prototype, {
 	initV4() {
 		this.zoom = 1;
 		this.pan = {
@@ -19433,7 +19434,7 @@ RL.videoToAtlas = async function(file, progress) {
 		URL.revokeObjectURL(url);
 	}
 };
-Object.assign(RL.App.prototype, {
+Object.assign(App.prototype, {
 	tlGeom() {
 		const c = $("#timeline"), W = c.clientWidth, H = c.clientHeight, D = this.project.duration;
 		return {
