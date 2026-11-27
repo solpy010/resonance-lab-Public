@@ -1797,15 +1797,15 @@ RL.Engine = class {
 	}
 };
 // src/fx.js
-RL.FX_TYPES = [
+var FX_TYPES = [
 	"ring",
 	"rays",
 	"shards",
 	"sparks",
 	"flash"
 ];
-RL.easeOutCubic = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
-RL.drawBurst = function(engine, e) {
+var easeOutCubic = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+var drawBurst = function(engine, e) {
 	const sb = engine.sprites, sg = engine.segs, A = engine.aspect;
 	engine.docW;
 	const docH = engine.docH;
@@ -1818,28 +1818,28 @@ RL.drawBurst = function(engine, e) {
 	for (const type of e.types) if (type === "ring") for (let j = 0; j < 2; j++) {
 		const aa = Math.max(0, a - j * .12) / (1 - j * .12);
 		if (aa <= 0) continue;
-		const rad = S * (.25 + .75 * RL.easeOutCubic(aa)), c = pick();
+		const rad = S * (.25 + .75 * easeOutCubic(aa)), c = pick();
 		sb.push(e.x, e.y, rad * 1.3, rad * 1.3, 0, c[0], c[1], c[2], Math.pow(1 - aa, 1.3) * k, 1, .012, .25, .022 + .02 * (1 - aa));
 	}
 	else if (type === "rays") {
 		const n = 8 + r.int(8), rot = r() * 6.283;
 		for (let j = 0; j < n; j++) {
 			const ang = rot + j / n * 6.283 + (r() - .5) * .3, len = S * (.35 + r() * .4);
-			const r0 = S * .12 + len * .6 * RL.easeOutCubic(a), r1 = S * .12 + len * RL.easeOutCubic(Math.min(1, a * 1.6));
+			const r0 = S * .12 + len * .6 * easeOutCubic(a), r1 = S * .12 + len * easeOutCubic(Math.min(1, a * 1.6));
 			const c = pick();
 			sg.push(e.x + Math.cos(ang) * px(r0) / A, e.y + Math.sin(ang) * px(r0), e.x + Math.cos(ang) * px(r1) / A, e.y + Math.sin(ang) * px(r1), Math.max(1.5, S * .012), S * .03, c[0], c[1], c[2], fade, .8, 0, 0, 0);
 		}
 	} else if (type === "shards") {
 		const n = Math.max(4, Math.round((e.count || 14) * .6));
 		for (let j = 0; j < n; j++) {
-			const ang = r() * 6.283, sp = .4 + r() * .6, d = S * .6 * sp * RL.easeOutCubic(a);
+			const ang = r() * 6.283, sp = .4 + r() * .6, d = S * .6 * sp * easeOutCubic(a);
 			const c = pick(), sz = S * (.05 + r() * .06) * (1 - a * .6);
 			sb.push(e.x + Math.cos(ang) * px(d) / A, e.y + Math.sin(ang) * px(d) - px(S * .15 * a * a), sz, sz, ang + a * (r() - .5) * 12, c[0], c[1], c[2], fade, r() < .5 ? 2 : 6, .05, .25, r() < .5 ? .25 : 0);
 		}
 	} else if (type === "sparks") {
 		const n = e.count || 18;
 		for (let j = 0; j < n; j++) {
-			const ang = r() * 6.283, sp = .3 + r() * .9, d = S * .75 * sp * RL.easeOutCubic(a);
+			const ang = r() * 6.283, sp = .3 + r() * .9, d = S * .75 * sp * easeOutCubic(a);
 			const c = pick(), sz = S * (.015 + r() * .025);
 			sb.push(e.x + Math.cos(ang) * px(d) / A, e.y + Math.sin(ang) * px(d) - px(S * .35 * a * a), sz, sz, 0, c[0], c[1], c[2], fade * (.6 + r() * .4), 1, .4, .8, 0);
 		}
@@ -1850,14 +1850,20 @@ RL.drawBurst = function(engine, e) {
 		}
 	}
 };
-RL.drawImageBurst = function(engine, asset, e) {
+var drawImageBurst = function(engine, asset, e) {
 	const a = e.age01;
 	if (!asset || a < 0 || a > 1) return;
 	const [u0, v0, u1, v1] = atlasUV(asset, asset.frames > 1 ? Math.min(asset.frames - 1, Math.floor(a * asset.frames)) : 0);
 	const asp = asset.w / asset.cols / (asset.h / asset.rows);
-	const sz = e.size * (.6 + .6 * RL.easeOutCubic(a));
+	const sz = e.size * (.6 + .6 * easeOutCubic(a));
 	engine.texb.push(e.x, e.y, sz * asp, sz, e.rot || 0, 1, 1, 1, (asset.frames > 1 ? 1 : Math.pow(1 - a, 1.2)) * (e.intensity ?? 1), u0, v0, u1, v1, asset.luma);
 };
+Object.assign(RL, {
+	FX_TYPES,
+	easeOutCubic,
+	drawBurst,
+	drawImageBurst
+});
 // src/mod_wave.js
 RL.modules.wave = {
 	label: "파장",
@@ -8791,7 +8797,7 @@ RL.modules.rhythm = {
 							const r = rng(h.seed);
 							let types = [P.effectType];
 							if (P.effectType === "random") {
-								const all = RL.FX_TYPES;
+								const all = FX_TYPES;
 								types = [
 									all[r.int(all.length)],
 									all[r.int(all.length)],
@@ -8810,8 +8816,8 @@ RL.modules.rhythm = {
 									types,
 									intensity: P.intensity
 								};
-								if (imgA) RL.drawImageBurst(engine, imgA, e);
-								else RL.drawBurst(engine, e);
+								if (imgA) drawImageBurst(engine, imgA, e);
+								else drawBurst(engine, e);
 							}
 						}
 						sg.flush(target, engine.docW, "add");
@@ -9468,7 +9474,7 @@ RL.modules.floaters = {
 					if (age < 0 || age > 1) continue;
 					const r = rng(f.seed);
 					const types = P.popEffect === "random" ? [
-						RL.FX_TYPES[r.int(RL.FX_TYPES.length)],
+						FX_TYPES[r.int(FX_TYPES.length)],
 						"sparks",
 						"flash"
 					] : [P.popEffect];
@@ -9490,8 +9496,8 @@ RL.modules.floaters = {
 							types,
 							intensity: P.intensity
 						};
-						if (imgA) RL.drawImageBurst(engine, imgA, e);
-						else if (P.popEffect !== "image") RL.drawBurst(engine, e);
+						if (imgA) drawImageBurst(engine, imgA, e);
+						else if (P.popEffect !== "image") drawBurst(engine, e);
 					}
 				}
 				sg.flush(target, engine.docW, "add");

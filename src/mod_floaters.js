@@ -1,6 +1,7 @@
 'use strict';
 import { RL } from './core/rl.js';
 import * as webgl from './gl.js';
+import * as fxlib from './fx.js';
 // FLOATERS — 오브젝트 유영: 화면 하단 바깥에서 태어나 부력·중력·저항을 받아 위로 떠오르고, 마커 타이밍에 '팡' 터지며 사라짐.
 // 결정론: 레이어 rng + 고정 dt → 같은 프레임은 언제나 같은 결과.
 
@@ -184,12 +185,12 @@ RL.modules.floaters = {
         for (const f of this.fx) {
           const age = (T - f.t0) / P.popLife; if (age < 0 || age > 1) continue;
           const r = webgl.rng(f.seed);
-          const types = P.popEffect === 'random' ? [RL.FX_TYPES[r.int(RL.FX_TYPES.length)], 'sparks', 'flash'] : [P.popEffect];
+          const types = P.popEffect === 'random' ? [fxlib.FX_TYPES[r.int(fxlib.FX_TYPES.length)], 'sparks', 'flash'] : [P.popEffect];
           const colors = P.popUseColor ? [webgl.hexToRgb(f.col), ...pal] : pal;
           for (const x of (wrap ? [f.x, f.x + 1, f.x - 1] : [f.x])) {
             if (x < -0.3 || x > 1.3) continue;
             const e = { x, y: f.y, age01: age, size: f.size, seed: f.seed, colors, count: Math.round(P.popCount * f.sc + 2), types, intensity: P.intensity };
-            if (imgA) RL.drawImageBurst(engine, imgA, e); else if (P.popEffect !== 'image') RL.drawBurst(engine, e);
+            if (imgA) fxlib.drawImageBurst(engine, imgA, e); else if (P.popEffect !== 'image') fxlib.drawBurst(engine, e);
           }
         }
         sg.flush(target, engine.docW, 'add'); sb.flush(target, engine.docW, 'add');

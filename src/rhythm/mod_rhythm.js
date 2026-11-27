@@ -1,6 +1,7 @@
 import { RL } from '../core/rl.js';
 import { FXN, FX_GLSL } from './fx_glsl.js';
 import * as webgl from '../gl.js';
+import * as fxlib from '../fx.js';
 // RHYTHM — 리듬게임 인게임: 마커 시점에 노트가 심벌에 '닿고', 그때 이펙트가 터지며, 누적될수록 심벌이 화려해짐.
 // 전부 시간의 함수(무상태) → 어느 프레임을 다시 렌더해도 동일. 노트 도착/이펙트 시점은 각각 싱크 슬라이더로 조정.
 // 셰이더 이펙트 14종(6 카테고리) + 다중참여 이펙트(참여 인원·빈도·통일↔무분별·크기 편차·퍼짐 반경·시드).
@@ -384,10 +385,10 @@ RL.modules.rhythm = {
               const Eh = energyAt(te);
               const r = webgl.rng(h.seed);
               let types = [P.effectType];
-              if (P.effectType === 'random') { const all = RL.FX_TYPES; types = [all[r.int(all.length)], all[r.int(all.length)], 'flash']; }
+              if (P.effectType === 'random') { const all = fxlib.FX_TYPES; types = [all[r.int(all.length)], all[r.int(all.length)], 'flash']; }
               for (const sx of syms) {
                 const e = { x: sx + (r() - 0.5) * 0.02 / A, y: hitY - P.hitY * 0.5, age01: age, size: P.effectSize * (1 + P.energyScale * Eh) * (0.7 + 0.3 * Math.min(1.5, h.s)), seed: h.seed, colors: fxCols, count: Math.round(P.effectCount), types, intensity: P.intensity };
-                if (imgA) RL.drawImageBurst(engine, imgA, e); else RL.drawBurst(engine, e);
+                if (imgA) fxlib.drawImageBurst(engine, imgA, e); else fxlib.drawBurst(engine, e);
               }
             }
             sg.flush(target, engine.docW, 'add'); sb.flush(target, engine.docW, 'add');
