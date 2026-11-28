@@ -90,8 +90,9 @@ npm run test:update    # 기준 프레임 다시 저장 — 의도한 화면 변
 - **릴리스** (`.github/workflows/release.yml`): 버전 태그를 올리면 Windows 서버에서 검사 → FFmpeg(LGPL 빌드) 받기 → 공개판 포터블 exe 빌드 →
   Release 생성·업로드(설명은 CHANGELOG 의 그 버전 항목, SHA256 포함). 순서:
   1. `VERSION`, `package.json`, `desktop/package.json` 의 버전을 올리고 `CHANGELOG.md` 에 `## v<버전> — 날짜` 항목을 씁니다.
-  2. 커밋·푸시 후 `git tag v<버전> && git push origin v<버전>`. 태그와 `VERSION`이 다르면 멈춥니다.
-  3. 이미 있는 태그로 다시 만들려면 Actions → 릴리스 → Run workflow 에 태그를 넣습니다(exe 교체).
+  2. 커밋·푸시 후 둘 중 하나: `git tag v<버전> && git push origin v<버전>`, 또는 GitHub 웹에서 Actions → 릴리스 → Run workflow 에 `v<버전>` 입력
+     (태그가 없으면 main 최신 커밋에 만듭니다). 태그와 `VERSION`이 다르면 멈춥니다.
+  3. 이미 있는 태그로 다시 만들 때도 Run workflow 에 그 태그를 넣습니다(exe 교체).
 - 작업판(씬 연출 타이틀 포함)은 자동으로 만들지 않습니다 — `bash tools/build_portable.sh --work` 로 직접 빌드합니다.
 
 앞으로의 구조 개선 계획은 [docs/개발_로드맵.md](docs/개발_로드맵.md)에 있습니다.

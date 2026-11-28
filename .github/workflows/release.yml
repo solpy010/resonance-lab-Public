@@ -1,4 +1,6 @@
 # 버전 태그(v0.5.9 등)를 올리면: 검사 → 공개판 포터블 exe 빌드 → GitHub Release 에 자동 업로드.
+# 태그 없이 웹에서: Actions → 릴리스 → Run workflow → 태그 입력. 태그가 없으면 main 최신 커밋에 태그와 Release 를 만들고,
+# 있으면 그 태그로 다시 빌드해 exe 를 교체한다. 웹에서 Release 를 먼저 만든 경우에도 exe 를 붙이고 비어 있는 설명을 채운다.
 # 태그 버전과 VERSION 파일이 다르면 멈춘다. 작업판(씬 연출 타이틀 포함)은 만들지 않는다.
 # FFmpeg 는 BtbN/FFmpeg-Builds 의 LGPL Windows 빌드를 받아 넣는다(prores_ks, h264_mf 확인).
 name: 릴리스
@@ -8,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '이미 있는 태그 (예: v0.5.8) — 그 태그로 다시 빌드해 Release 를 만들거나 exe 를 교체'
+        description: '태그 (예: v0.5.9) — 없으면 main 최신 커밋에 새로 만들고, 있으면 그 태그로 다시 빌드'
         required: true
 permissions:
   contents: write
@@ -25,7 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - name: 빌드할 커밋 고르기
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then git checkout -q "$TAG"; echo "기존 태그 $TAG 로 빌드"; else echo "새 태그 $TAG — $(git rev-parse --short HEAD) 에 만듦"; fi
+          echo "SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -69,6 +75,7 @@ jobs:
           node tools/release_notes.mjs "$VER" > notes.md
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" "$EXE" dist/public/SHA256SUMS.txt --clobber
+            [ -n "$(gh release view "$TAG" --json body --jq .body)" ] || gh release edit "$TAG" --notes-file notes.md
           else
-            gh release create "$TAG" "$EXE" dist/public/SHA256SUMS.txt --title "RESONANCE LAB v${VER}" --notes-file notes.md
+            gh release create "$TAG" "$EXE" dist/public/SHA256SUMS.txt --target "$SHA" --title "RESONANCE LAB v${VER}" --notes-file notes.md
           fi
